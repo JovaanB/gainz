@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
@@ -92,16 +91,16 @@ export default function HistoryScreen() {
     const minutes = duration % 60;
 
     if (hours > 0) {
-      return `${hours}h ${minutes}min`;
+      return `${hours}h ${minutes} min`;
     }
-    return `${minutes}min`;
+    return `${minutes} min`;
   };
 
   const weeklyStats = getWeeklyStats();
   const completedWorkouts = workoutHistory.filter((w) => w.finished_at);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView
         style={styles.content}
         refreshControl={
@@ -119,7 +118,7 @@ export default function HistoryScreen() {
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{weeklyStats.totalTime}min</Text>
+              <Text style={styles.statNumber}>{weeklyStats.totalTime} min</Text>
               <Text style={styles.statLabel}>Temps total</Text>
             </View>
 
@@ -130,7 +129,7 @@ export default function HistoryScreen() {
 
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>
-                {weeklyStats.avgDuration}min
+                {weeklyStats.avgDuration} min
               </Text>
               <Text style={styles.statLabel}>Durée moy.</Text>
             </View>
@@ -234,7 +233,7 @@ export default function HistoryScreen() {
         {/* Bottom Spacing */}
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

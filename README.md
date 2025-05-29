@@ -1,4 +1,4 @@
-# 🏋️ FitnessApp - MVP
+# 🏋️ Gainz - MVP
 
 Une application mobile de suivi d'entraînement simple et efficace, construite avec React Native et Expo.
 
@@ -279,7 +279,7 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 ```
 MIT License
 
-Copyright (c) 2025 FitnessApp
+Copyright (c) 2025 Gainz
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -307,13 +307,12 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 Développé avec ❤️ pour la communauté fitness.
 
-**Contact**: [ton-email@example.com]  
-**Twitter**: [@tonhandle]  
-**LinkedIn**: [ton-profil]
+**Contact**: [bienvenujovan@gmail.com]  
+**LinkedIn**: [https://www.linkedin.com/in/jovanbienvenu]
 
 ---
 
-**Note**: Ce projet est un MVP (Minimum Viable Product) créé à des fins éducatives et de démonstration. Il est prêt pour être étendu vers une application complète.
+**Note**: Ce projet est un MVP (Minimum Viable Product) créé à des fins de démonstration. Il est prêt pour être étendu vers une application complète.
 
 ## 📝 Changelog
 

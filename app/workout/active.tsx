@@ -5,8 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Alert,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -65,11 +65,11 @@ export default function ActiveWorkoutScreen() {
 
   if (!currentWorkout) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Redirection...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -135,7 +135,7 @@ export default function ActiveWorkoutScreen() {
   return (
     <>
       <StatusBar style="light" />
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleCancelWorkout}>
@@ -275,7 +275,7 @@ export default function ActiveWorkoutScreen() {
           {/* Bottom Spacing */}
           <View style={{ height: 100 }} />
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </>
   );
 }
@@ -284,6 +284,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#1C1C1E",
+    paddingTop: Platform.OS === "android" ? 32 : 0,
   },
   header: {
     flexDirection: "row",

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useWorkoutStore } from "@/store/workoutStore";
@@ -46,7 +45,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView style={styles.content}>
         {/* Stats Section */}
         <View style={styles.statsContainer}>
@@ -107,7 +106,7 @@ export default function HomeScreen() {
       <TouchableOpacity style={styles.fab} onPress={startNewWorkout}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 

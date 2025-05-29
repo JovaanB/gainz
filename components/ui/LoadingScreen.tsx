@@ -1,12 +1,12 @@
 import React from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { FinalLogo } from "./FinalLogo";
 
 export const LoadingScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Ionicons name="barbell" size={60} color="#007AFF" />
+        <FinalLogo size="large" showText={false} />
         <Text style={styles.title}>Gainz</Text>
         <Text style={styles.subtitle}>Chargement de vos données...</Text>
         <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />

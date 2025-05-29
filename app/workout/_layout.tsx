@@ -14,7 +14,7 @@ export default function WorkoutLayout() {
         name="active"
         options={{
           headerShown: false,
-          gestureEnabled: false, // Empêche de swiper pour fermer
+          gestureEnabled: false,
         }}
       />
       <Stack.Screen

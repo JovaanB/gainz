@@ -7,6 +7,7 @@ import { useWorkoutStore } from "@/store/workoutStore";
 import { useExerciseStore } from "@/store/exerciseStore";
 import { useToastStore } from "@/store/toastStore";
 import * as SplashScreen from "expo-splash-screen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,7 +38,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="workout" options={{ headerShown: false }} />
@@ -51,6 +52,6 @@ export default function RootLayout() {
         type={type}
         onHide={hideToast}
       />
-    </>
+    </SafeAreaProvider>
   );
 }

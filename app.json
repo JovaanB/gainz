@@ -1,28 +1,33 @@
 {
   "expo": {
-    "name": "FitnessApp",
-    "slug": "fitness-app",
+    "name": "Gainz",
+    "slug": "gainz",
     "version": "1.0.0",
     "sdkVersion": "50.0.0",
     "orientation": "portrait",
-    "scheme": "fitness-app",
+    "scheme": "gainz",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourname.fitnessapp"
+      "bundleIdentifier": "com.jovanbienvenu.gainz",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#007AFF"
       },
-      "package": "com.yourname.fitnessapp"
+      "package": "com.jovanbienvenu.gainz",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -32,6 +37,14 @@
     "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "9c00f9da-5c3f-4dd5-b9b6-825c6b6b6088"
+      }
     }
   }
 }

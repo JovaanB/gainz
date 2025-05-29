@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
   Share,
@@ -27,7 +26,7 @@ export default function WorkoutDetailScreen() {
 
   if (!workout) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#007AFF" />
@@ -38,7 +37,7 @@ export default function WorkoutDetailScreen() {
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Cette séance n'existe plus.</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -175,7 +174,7 @@ Généré avec FitnessApp 💪`;
   const totalVolume = calculateTotalVolume();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -354,7 +353,7 @@ Généré avec FitnessApp 💪`;
         {/* Bottom Spacing */}
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
