@@ -57,7 +57,7 @@ export const FinalLogo: React.FC<FinalLogoProps> = ({
           },
         ]}
       >
-        FitnessApp
+        Gainz
       </Text>
     </View>
   );

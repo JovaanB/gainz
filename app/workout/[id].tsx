@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useWorkoutStore } from "@/store/workoutStore";
 import { Workout, WorkoutExercise } from "@/types";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WorkoutDetailScreen() {
   const router = useRouter();
@@ -68,11 +69,46 @@ export default function WorkoutDetailScreen() {
 
   const calculateTotalVolume = () => {
     return workout.exercises.reduce((total, exercise) => {
+      if (exercise.exercise.category === "cardio") return total;
+
       return (
         total +
         exercise.sets.reduce((setTotal, set) => {
           if (set.completed && set.reps && set.weight) {
             return setTotal + set.reps * set.weight;
+          }
+          return setTotal;
+        }, 0)
+      );
+    }, 0);
+  };
+
+  const getTotalCardioTime = () => {
+    return workout.exercises.reduce((total, exercise) => {
+      // Seulement le cardio
+      if (exercise.exercise.category !== "cardio") return total;
+
+      return (
+        total +
+        exercise.sets.reduce((setTotal, set) => {
+          if (set.completed && set.duration_seconds) {
+            return setTotal + set.duration_seconds;
+          }
+          return setTotal;
+        }, 0)
+      );
+    }, 0);
+  };
+
+  const getTotalDistance = () => {
+    return workout.exercises.reduce((total, exercise) => {
+      if (exercise.exercise.category !== "cardio") return total;
+
+      return (
+        total +
+        exercise.sets.reduce((setTotal, set) => {
+          if (set.completed && set.distance_km) {
+            return setTotal + set.distance_km;
           }
           return setTotal;
         }, 0)
@@ -98,23 +134,79 @@ export default function WorkoutDetailScreen() {
       weight?: number;
     } | null = null;
     let bestValue = 0;
+    const isCardio = workoutExercise.exercise.category === "cardio";
 
     workoutExercise.sets.forEach(
-      (set: { completed: boolean; reps?: number; weight?: number }) => {
-        if (set.completed && set.reps) {
-          const value: number = set.weight
-            ? set.weight * (1 + set.reps / 30) // 1RM estimé
-            : set.reps; // Pour exercices au poids de corps
+      (set: {
+        completed: boolean;
+        reps?: number;
+        weight?: number;
+        duration_seconds?: number;
+        distance_km?: number;
+      }) => {
+        if (!set.completed) return;
+        let currentValue = 0;
 
-          if (value > bestValue) {
-            bestValue = value;
-            bestSet = set;
+        if (isCardio) {
+          if (set.distance_km && set.duration_seconds) {
+            currentValue = set.distance_km / (set.duration_seconds / 3600);
+          } else if (set.distance_km) {
+            currentValue = set.distance_km * 1000;
+          } else if (set.duration_seconds) {
+            currentValue = set.duration_seconds;
           }
+        } else {
+          if (set.reps) {
+            currentValue = set.weight
+              ? set.weight * (1 + set.reps / 30)
+              : set.reps;
+          }
+        }
+
+        if (currentValue > bestValue) {
+          bestValue = currentValue;
+          bestSet = set;
         }
       }
     );
 
     return bestSet;
+  };
+
+  const formatCardioSet = (set: any) => {
+    const parts = [];
+
+    if (set.duration_seconds) {
+      const minutes = Math.floor(set.duration_seconds / 60);
+      const seconds = set.duration_seconds % 60;
+      parts.push(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+    }
+
+    if (set.distance_km) {
+      parts.push(`${set.distance_km}km`);
+    }
+
+    if (set.duration_seconds && set.distance_km) {
+      const speed = set.distance_km / (set.duration_seconds / 3600);
+      parts.push(`(${speed.toFixed(1)}km/h)`);
+    }
+
+    return parts.join(" • ");
+  };
+
+  const formatBestSet = (bestSet: any, isCardio: boolean) => {
+    if (!bestSet) return "Aucune donnée";
+
+    if (isCardio) {
+      return formatCardioSet(bestSet);
+    } else {
+      // Musculation (code existant)
+      if (bestSet.weight) {
+        return `${bestSet.reps} reps × ${bestSet.weight}kg`;
+      } else {
+        return `${bestSet.reps} reps (poids de corps)`;
+      }
+    }
   };
 
   const handleDeleteWorkout = () => {
@@ -160,7 +252,7 @@ ${workout.exercises
   })
   .join("\n")}
 
-Généré avec FitnessApp 💪`;
+Généré avec Gainz 💪`;
 
     try {
       await Share.share({
@@ -174,7 +266,7 @@ Généré avec FitnessApp 💪`;
   const totalVolume = calculateTotalVolume();
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -216,17 +308,42 @@ Généré avec FitnessApp 💪`;
             <Text style={styles.statLabel}>Séries</Text>
           </View>
 
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {Math.round(totalVolume / 1000)}t
-            </Text>
-            <Text style={styles.statLabel}>Volume</Text>
-          </View>
+          {/* Volume ou temps cardio selon le type d'entraînement */}
+          {calculateTotalVolume() > 0 ? (
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>
+                {Math.round(calculateTotalVolume() / 1000)}t
+              </Text>
+              <Text style={styles.statLabel}>Volume</Text>
+            </View>
+          ) : getTotalCardioTime() > 0 ? (
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>
+                {Math.floor(getTotalCardioTime() / 60)}min
+              </Text>
+              <Text style={styles.statLabel}>Cardio</Text>
+            </View>
+          ) : (
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Volume</Text>
+            </View>
+          )}
 
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{workout.exercises.length}</Text>
-            <Text style={styles.statLabel}>Exercices</Text>
-          </View>
+          {/* Distance si pertinent */}
+          {getTotalDistance() > 0 ? (
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>
+                {getTotalDistance().toFixed(1)}km
+              </Text>
+              <Text style={styles.statLabel}>Distance</Text>
+            </View>
+          ) : (
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{workout.exercises.length}</Text>
+              <Text style={styles.statLabel}>Exercices</Text>
+            </View>
+          )}
         </View>
 
         {/* Exercises Detail */}
@@ -267,48 +384,68 @@ Généré avec FitnessApp 💪`;
 
                   {bestSet && (
                     <Text style={styles.bestSetText}>
-                      Meilleur: {bestSet.reps} reps
-                      {bestSet.weight && ` × ${bestSet.weight}kg`}
+                      Meilleur:{" "}
+                      {formatBestSet(
+                        bestSet,
+                        workoutExercise.exercise.category === "cardio"
+                      )}
                     </Text>
                   )}
                 </View>
 
                 {/* Sets Detail */}
                 <View style={styles.setsDetail}>
-                  {workoutExercise.sets.map((set, setIndex) => (
-                    <View
-                      key={setIndex}
-                      style={[
-                        styles.setRow,
-                        set.completed && styles.setRowCompleted,
-                      ]}
-                    >
-                      <Text style={styles.setNumber}>{setIndex + 1}</Text>
+                  {workoutExercise.sets.map((set, setIndex) => {
+                    const isCardio =
+                      workoutExercise.exercise.category === "cardio";
 
-                      <View style={styles.setData}>
-                        {set.completed ? (
-                          <>
-                            <Text style={styles.setValue}>{set.reps} reps</Text>
-                            {set.weight && (
-                              <Text style={styles.setWeight}>
-                                {set.weight}kg
-                              </Text>
-                            )}
-                          </>
-                        ) : (
-                          <Text style={styles.setIncomplete}>Non terminée</Text>
+                    return (
+                      <View
+                        key={setIndex}
+                        style={[
+                          styles.setRow,
+                          set.completed && styles.setRowCompleted,
+                        ]}
+                      >
+                        <Text style={styles.setNumber}>{setIndex + 1}</Text>
+
+                        <View style={styles.setData}>
+                          {set.completed ? (
+                            <>
+                              {isCardio ? (
+                                <Text style={styles.setValue}>
+                                  {formatCardioSet(set)}
+                                </Text>
+                              ) : (
+                                <>
+                                  <Text style={styles.setValue}>
+                                    {set.reps} reps
+                                  </Text>
+                                  {set.weight && (
+                                    <Text style={styles.setWeight}>
+                                      {set.weight}kg
+                                    </Text>
+                                  )}
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <Text style={styles.setIncomplete}>
+                              Non terminée
+                            </Text>
+                          )}
+                        </View>
+
+                        {set.completed && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color="#34C759"
+                          />
                         )}
                       </View>
-
-                      {set.completed && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={20}
-                          color="#34C759"
-                        />
-                      )}
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
 
                 {/* Notes */}
@@ -353,7 +490,7 @@ Généré avec FitnessApp 💪`;
         {/* Bottom Spacing */}
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

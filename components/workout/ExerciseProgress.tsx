@@ -59,10 +59,9 @@ export const ExerciseProgress: React.FC<ExerciseProgressProps> = ({
       });
     });
 
-    // Convertir en array et trier par fréquence d'utilisation
     return Array.from(exerciseMap.values())
       .sort((a, b) => b.sessions.length - a.sessions.length)
-      .slice(0, 5); // Top 5 exercices
+      .slice(0, 5);
   };
 
   const exerciseStats = getExerciseStats();
@@ -70,10 +69,25 @@ export const ExerciseProgress: React.FC<ExerciseProgressProps> = ({
   const formatProgress = (exercise: any) => {
     if (!exercise.bestSet) return "Aucune donnée";
 
-    if (exercise.exercise.is_bodyweight) {
-      return `${exercise.bestSet.reps} reps max`;
+    if (exercise.exercise.category === "cardio") {
+      const parts = [];
+
+      if (exercise.bestSet.duration_seconds) {
+        const minutes = Math.floor(exercise.bestSet.duration_seconds / 60);
+        parts.push(`${minutes}min`);
+      }
+
+      if (exercise.bestSet.distance_km) {
+        parts.push(`${exercise.bestSet.distance_km}km`);
+      }
+
+      return parts.join(" • ");
     } else {
-      return `${exercise.bestSet.reps} × ${exercise.bestSet.weight}kg`;
+      if (exercise.exercise.is_bodyweight) {
+        return `${exercise.bestSet.reps} reps max`;
+      } else {
+        return `${exercise.bestSet.reps} × ${exercise.bestSet.weight}kg`;
+      }
     }
   };
 

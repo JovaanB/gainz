@@ -8,17 +8,25 @@ import {
   FlatList,
   Alert,
   Platform,
+  ScrollView,
+  SafeAreaView,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useWorkoutStore } from "@/store/workoutStore";
 import { useExerciseStore } from "@/store/exerciseStore";
 import { Exercise } from "@/types";
+import { WORKOUT_TEMPLATES, WorkoutTemplate } from "@/data/workoutTemplates";
+
+type Step = "name" | "template" | "exercises";
 
 export default function NewWorkoutScreen() {
   const router = useRouter();
   const [workoutName, setWorkoutName] = useState("");
-  const [step, setStep] = useState<"name" | "exercises">("name");
+  const [step, setStep] = useState<Step>("name");
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<WorkoutTemplate | null>(null);
 
   const { startWorkout } = useWorkoutStore();
   const {
@@ -26,7 +34,6 @@ export default function NewWorkoutScreen() {
     selectedExercises,
     searchQuery,
     selectedMuscleGroup,
-    isLoading,
     loadExercises,
     searchExercises,
     filterByMuscleGroup,
@@ -47,7 +54,7 @@ export default function NewWorkoutScreen() {
       Alert.alert("Erreur", "Veuillez entrer un nom pour votre séance");
       return;
     }
-    setStep("exercises");
+    setStep("template");
   };
 
   const handleCreateWorkout = () => {
@@ -61,6 +68,26 @@ export default function NewWorkoutScreen() {
 
     // Navigation vers l'écran de workout actif
     router.replace("/workout/active");
+  };
+
+  const handleUseTemplate = (template: WorkoutTemplate) => {
+    setSelectedTemplate(template);
+
+    // Auto-sélectionne les exercices du template
+    const templateExercises = exercises.filter((ex) =>
+      template.exercises.includes(ex.id)
+    );
+    templateExercises.forEach((exercise) => {
+      if (!selectedExercises.some((selected) => selected.id === exercise.id)) {
+        toggleExerciseSelection(exercise);
+      }
+    });
+
+    setStep("exercises");
+  };
+
+  const handleSkipTemplate = () => {
+    setStep("exercises");
   };
 
   const getMuscleGroups = () => {
@@ -132,7 +159,7 @@ export default function NewWorkoutScreen() {
 
   if (step === "name") {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="close" size={24} color="#007AFF" />
@@ -142,36 +169,45 @@ export default function NewWorkoutScreen() {
         </View>
 
         <View style={styles.content}>
-          <View style={styles.nameSection}>
-            <Text style={styles.sectionTitle}>
-              Comment s'appelle ta séance ?
-            </Text>
-            <TextInput
-              style={styles.nameInput}
-              value={workoutName}
-              onChangeText={setWorkoutName}
-              placeholder="Ex: Push Day, Jambes, Full Body..."
-              placeholderTextColor="#C7C7CC"
-              autoFocus
-              maxLength={50}
-            />
-            <Text style={styles.charCount}>{workoutName.length}/50</Text>
-          </View>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.nameSection}>
+                <Text style={styles.sectionTitle}>
+                  Comment s'appelle ta séance ?
+                </Text>
+                <TextInput
+                  style={styles.nameInput}
+                  value={workoutName}
+                  onChangeText={setWorkoutName}
+                  placeholder="Ex: Push Day, Jambes, Full Body..."
+                  placeholderTextColor="#C7C7CC"
+                  autoFocus
+                  maxLength={50}
+                />
+                <Text style={styles.charCount}>{workoutName.length}/50</Text>
+              </View>
 
-          <View style={styles.quickOptions}>
-            <Text style={styles.quickOptionsTitle}>Suggestions :</Text>
-            {["Push Day", "Pull Day", "Jambes", "Full Body", "Cardio"].map(
-              (name) => (
-                <TouchableOpacity
-                  key={name}
-                  style={styles.quickOption}
-                  onPress={() => setWorkoutName(name)}
-                >
-                  <Text style={styles.quickOptionText}>{name}</Text>
-                </TouchableOpacity>
-              )
-            )}
-          </View>
+              <View style={styles.quickOptions}>
+                <Text style={styles.quickOptionsTitle}>Suggestions :</Text>
+                {["Push Day", "Pull Day", "Jambes", "Full Body", "Cardio"].map(
+                  (name) => (
+                    <TouchableOpacity
+                      key={name}
+                      style={styles.quickOption}
+                      onPress={() => setWorkoutName(name)}
+                    >
+                      <Text style={styles.quickOptionText}>{name}</Text>
+                    </TouchableOpacity>
+                  )
+                )}
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </View>
 
         <TouchableOpacity
@@ -184,12 +220,109 @@ export default function NewWorkoutScreen() {
         >
           <Text style={styles.continueButtonText}>Continuer</Text>
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (step === "template") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setStep("name")}>
+            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Choisir un template</Text>
+          <TouchableOpacity onPress={handleSkipTemplate}>
+            <Text style={styles.skipButton}>Passer</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          style={styles.templateContent}
+          contentContainerStyle={styles.templateScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.templateTitle}>
+            Commence avec un template ou crée ta séance personnalisée
+          </Text>
+
+          <View style={styles.templatesGrid}>
+            {WORKOUT_TEMPLATES.map((template) => (
+              <TouchableOpacity
+                key={template.id}
+                style={styles.templateCard}
+                onPress={() => handleUseTemplate(template)}
+              >
+                <View style={styles.templateHeader}>
+                  <View
+                    style={[
+                      styles.templateIcon,
+                      styles[`difficulty${template.difficulty}`],
+                    ]}
+                  >
+                    <Ionicons
+                      name={template.icon as any}
+                      size={24}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                  <View style={styles.templateMeta}>
+                    <Text style={styles.templateDuration}>
+                      {template.estimatedDuration}min
+                    </Text>
+                    <View
+                      style={[
+                        styles.difficultyBadge,
+                        styles[`difficulty${template.difficulty}Badge`],
+                      ]}
+                    >
+                      <Text style={styles.difficultyText}>
+                        {template.difficulty === "beginner"
+                          ? "Débutant"
+                          : template.difficulty === "intermediate"
+                          ? "Intermédiaire"
+                          : "Avancé"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <Text style={styles.templateName}>{template.name}</Text>
+                <Text style={styles.templateDescription}>
+                  {template.description}
+                </Text>
+
+                <View style={styles.templateMuscles}>
+                  {template.muscleGroups.slice(0, 3).map((muscle, index) => (
+                    <View key={index} style={styles.templateMuscleTag}>
+                      <Text style={styles.templateMuscleText}>{muscle}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <Text style={styles.templateExerciseCount}>
+                  {template.exercises.length} exercices
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={styles.customButton}
+            onPress={handleSkipTemplate}
+          >
+            <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+            <Text style={styles.customButtonText}>
+              Créer une séance personnalisée
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => setStep("name")}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
@@ -199,6 +332,23 @@ export default function NewWorkoutScreen() {
           <Ionicons name="close" size={24} color="#007AFF" />
         </TouchableOpacity>
       </View>
+
+      {selectedTemplate && (
+        <View style={styles.templateInfoBar}>
+          <Ionicons
+            name={selectedTemplate.icon as any}
+            size={16}
+            color="#007AFF"
+          />
+          <Text style={styles.templateInfoText}>
+            Template {selectedTemplate.name} •{" "}
+            {selectedTemplate.estimatedDuration}min
+          </Text>
+          <TouchableOpacity onPress={() => setSelectedTemplate(null)}>
+            <Ionicons name="close-circle" size={16} color="#8E8E93" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -257,7 +407,7 @@ export default function NewWorkoutScreen() {
           </Text>
         </TouchableOpacity>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -482,5 +632,159 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  templateContent: {
+    flex: 1,
+  },
+  templateScrollContent: {
+    padding: 20,
+  },
+  templateTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1C1C1E",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  templatesGrid: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  templateCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  templateHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  templateIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  difficultybeginner: {
+    backgroundColor: "#34C759",
+  },
+  difficultyintermediate: {
+    backgroundColor: "#FF9500",
+  },
+  difficultyadvanced: {
+    backgroundColor: "#FF3B30",
+  },
+  templateMeta: {
+    alignItems: "flex-end",
+  },
+  templateDuration: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007AFF",
+    marginBottom: 4,
+  },
+  difficultyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  difficultybeginnerBadge: {
+    backgroundColor: "#E8F5E8",
+  },
+  difficultyintermediateBadge: {
+    backgroundColor: "#FFF3E0",
+  },
+  difficultyadvancedBadge: {
+    backgroundColor: "#FFEBEE",
+  },
+  difficultyText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#666",
+  },
+  templateName: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1C1C1E",
+    marginBottom: 8,
+  },
+  templateDescription: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  templateMuscles: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
+  templateMuscleTag: {
+    backgroundColor: "#F0F8FF",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  templateMuscleText: {
+    fontSize: 11,
+    color: "#007AFF",
+    fontWeight: "500",
+  },
+  templateExerciseCount: {
+    fontSize: 12,
+    color: "#8E8E93",
+    fontWeight: "500",
+  },
+  customButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0F8FF",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: "#007AFF",
+    borderStyle: "dashed",
+  },
+  customButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#007AFF",
+    marginLeft: 8,
+  },
+  skipButton: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#007AFF",
+  },
+  templateInfoBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F8FF",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5EA",
+  },
+  templateInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#007AFF",
+    fontWeight: "500",
+    marginLeft: 8,
+    marginRight: 8,
   },
 });

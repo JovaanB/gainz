@@ -1,4 +1,3 @@
-// store/workoutStore.ts
 import { create } from "zustand";
 import { Workout, WorkoutExercise, WorkoutSet, Exercise } from "@/types";
 import { StorageService } from "@/services/storage";
@@ -16,10 +15,10 @@ interface WorkoutStore {
     duration: number;
   };
 
-  // Actions
   startWorkout: (name: string, selectedExercises: Exercise[]) => void;
   finishWorkout: () => Promise<void>;
   cancelWorkout: () => void;
+  clearCurrentWorkout: () => void;
   addExerciseToWorkout: (exercise: WorkoutExercise) => void;
   updateSet: (
     exerciseId: string,
@@ -86,7 +85,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   finishWorkout: async () => {
-    const { currentWorkout } = get();
+    const { currentWorkout, workoutHistory } = get();
     if (!currentWorkout) return;
 
     try {
@@ -97,23 +96,17 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
       await StorageService.saveWorkout(finishedWorkout);
 
+      const updatedHistory = [finishedWorkout, ...workoutHistory];
+
       set({
-        currentWorkout: null,
+        currentWorkout: finishedWorkout,
         isRecording: false,
         currentExerciseIndex: 0,
-        workoutHistory: [finishedWorkout, ...get().workoutHistory],
+        workoutHistory: updatedHistory,
         restTimer: { isActive: false, timeLeft: 0, duration: 90 },
       });
-
-      // Notification de succès
-      useToastStore
-        .getState()
-        .showToast("Séance terminée avec succès ! 💪", "success");
     } catch (error) {
       console.error("Error finishing workout:", error);
-      useToastStore
-        .getState()
-        .showToast("Erreur lors de la sauvegarde", "error");
     }
   },
 
@@ -124,6 +117,10 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       currentExerciseIndex: 0,
       restTimer: { isActive: false, timeLeft: 0, duration: 90 },
     });
+  },
+
+  clearCurrentWorkout: () => {
+    set({ currentWorkout: null });
   },
 
   addExerciseToWorkout: (exercise: WorkoutExercise) => {
@@ -232,7 +229,6 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       },
     });
 
-    // Démarre le timer de repos
     const currentExercise = updatedExercises.find((ex) => ex.id === exerciseId);
     const restDuration = currentExercise?.sets[setIndex]?.rest_seconds || 90;
     startRestTimer(restDuration);
@@ -246,13 +242,63 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       currentExerciseIndex + 1,
       currentWorkout.exercises.length - 1
     );
-    set({ currentExerciseIndex: nextIndex });
+
+    const updatedExercises = currentWorkout.exercises.map((exercise, index) => {
+      if (index === nextIndex) {
+        const updatedSets = exercise.sets.map((set) => {
+          if (!set.completed) {
+            return {
+              ...set,
+              reps: undefined,
+              weight: undefined,
+            };
+          }
+          return set;
+        });
+        return { ...exercise, sets: updatedSets };
+      }
+      return exercise;
+    });
+
+    set({
+      currentExerciseIndex: nextIndex,
+      currentWorkout: {
+        ...currentWorkout,
+        exercises: updatedExercises,
+      },
+    });
   },
 
   goToPreviousExercise: () => {
-    const { currentExerciseIndex } = get();
+    const { currentWorkout, currentExerciseIndex } = get();
+    if (!currentWorkout) return;
+
     const prevIndex = Math.max(currentExerciseIndex - 1, 0);
-    set({ currentExerciseIndex: prevIndex });
+
+    const updatedExercises = currentWorkout.exercises.map((exercise, index) => {
+      if (index === prevIndex) {
+        const updatedSets = exercise.sets.map((set) => {
+          if (!set.completed) {
+            return {
+              ...set,
+              reps: undefined,
+              weight: undefined,
+            };
+          }
+          return set;
+        });
+        return { ...exercise, sets: updatedSets };
+      }
+      return exercise;
+    });
+
+    set({
+      currentExerciseIndex: prevIndex,
+      currentWorkout: {
+        ...currentWorkout,
+        exercises: updatedExercises,
+      },
+    });
   },
 
   startRestTimer: (duration: number) => {

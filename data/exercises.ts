@@ -1,7 +1,6 @@
 import { Exercise } from "@/types";
 
 export const DEFAULT_EXERCISES: Exercise[] = [
-  // Pectoraux
   {
     id: "bench-press",
     name: "Développé couché",
@@ -25,7 +24,6 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     is_bodyweight: true,
   },
-  // Dos
   {
     id: "pull-ups",
     name: "Tractions",
@@ -47,7 +45,6 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     is_bodyweight: false,
   },
-  // Jambes
   {
     id: "squat",
     name: "Squat",
@@ -69,7 +66,6 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     is_bodyweight: false,
   },
-  // Épaules
   {
     id: "shoulder-press",
     name: "Développé épaules",
@@ -99,11 +95,10 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     is_bodyweight: true,
   },
-  // Cardio
   {
     id: "treadmill",
     name: "Tapis de course",
-    muscle_groups: ["Cardio"],
+    muscle_groups: ["Cardio", "Jambes"],
     category: "cardio",
     is_bodyweight: true,
   },
@@ -111,6 +106,34 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     id: "cycling",
     name: "Vélo",
     muscle_groups: ["Cardio", "Jambes"],
+    category: "cardio",
+    is_bodyweight: true,
+  },
+  {
+    id: "rowing-machine",
+    name: "Rameur",
+    muscle_groups: ["Cardio", "Dos", "Bras"],
+    category: "cardio",
+    is_bodyweight: true,
+  },
+  {
+    id: "stair-climber",
+    name: "Escaliers",
+    muscle_groups: ["Cardio", "Jambes", "Fessiers"],
+    category: "cardio",
+    is_bodyweight: true,
+  },
+  {
+    id: "elliptical",
+    name: "Elliptique",
+    muscle_groups: ["Cardio", "Corps entier"],
+    category: "cardio",
+    is_bodyweight: true,
+  },
+  {
+    id: "jump-rope",
+    name: "Corde à sauter",
+    muscle_groups: ["Cardio", "Mollets"],
     category: "cardio",
     is_bodyweight: true,
   },

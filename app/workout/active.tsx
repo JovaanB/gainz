@@ -15,6 +15,11 @@ import { RestTimer } from "@/components/workout/RestTimer";
 import { SetRow } from "@/components/workout/SetRow";
 import { StatusBar } from "expo-status-bar";
 import { useKeepAwake } from "expo-keep-awake";
+import { useProgressStore } from "@/store/progressStore";
+import { PRNotification } from "@/components/workout/PRNotification";
+import { ProgressionSuggestionCard } from "@/components/workout/ProgressionSuggestion";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useToastStore } from "@/store/toastStore";
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
@@ -26,6 +31,7 @@ export default function ActiveWorkoutScreen() {
     restTimer,
     finishWorkout,
     cancelWorkout,
+    clearCurrentWorkout,
     updateSet,
     addSet,
     removeSet,
@@ -34,9 +40,19 @@ export default function ActiveWorkoutScreen() {
     goToPreviousExercise,
     stopRestTimer,
     updateRestTimer,
+    workoutHistory,
   } = useWorkoutStore();
 
+  const { getProgressionSuggestion, updateProgress, newPRs, markPRsSeen } =
+    useProgressStore();
+
   useKeepAwake();
+
+  useEffect(() => {
+    if (workoutHistory.length > 0) {
+      updateProgress(workoutHistory);
+    }
+  }, [workoutHistory, updateProgress]);
 
   // Timer de repos
   useEffect(() => {
@@ -84,22 +100,34 @@ export default function ActiveWorkoutScreen() {
     return `${elapsed}min`;
   };
 
-  const handleFinishWorkout = () => {
-    Alert.alert(
-      "Terminer la séance",
-      "Êtes-vous sûr de vouloir terminer cette séance ?",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Terminer",
-          style: "destructive",
-          onPress: async () => {
-            await finishWorkout();
-            router.replace("/(tabs)");
-          },
-        },
-      ]
+  const applyProgressionSuggestion = (exerciseId: string) => {
+    const suggestion = getProgressionSuggestion(currentExercise.exercise.id);
+    if (!suggestion) {
+      return;
+    }
+
+    const nextSetIndex = currentExercise.sets.findIndex(
+      (set) => !set.completed
     );
+
+    if (nextSetIndex === -1) {
+      addSet(currentExercise.id);
+
+      const newSetIndex = currentExercise.sets.length;
+
+      setTimeout(() => {
+        updateSet(currentExercise.id, newSetIndex, {
+          reps: suggestion.suggested.reps,
+          weight: suggestion.suggested.weight,
+        });
+      }, 100);
+    } else {
+      // Applique la suggestion au prochain set
+      updateSet(currentExercise.id, nextSetIndex, {
+        reps: suggestion.suggested.reps,
+        weight: suggestion.suggested.weight,
+      });
+    }
   };
 
   const handleCancelWorkout = () => {
@@ -132,10 +160,62 @@ export default function ActiveWorkoutScreen() {
     }, 0);
   };
 
+  const handleFinishWorkout = async () => {
+    Alert.alert(
+      "Terminer la séance",
+      "Êtes-vous sûr de vouloir terminer cette séance ?",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Terminer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (!currentWorkout) return;
+
+              const finishedWorkout = {
+                ...currentWorkout,
+                finished_at: Date.now(),
+              };
+
+              const { detectNewPRs, updateProgress } =
+                useProgressStore.getState();
+              const newPRs = detectNewPRs(finishedWorkout, workoutHistory);
+
+              await finishWorkout();
+
+              const updatedHistory = [finishedWorkout, ...workoutHistory];
+              updateProgress(updatedHistory);
+
+              if (newPRs.length > 0) {
+                useProgressStore.setState({ newPRs });
+              } else {
+                router.replace("/(tabs)");
+              }
+            } catch (error) {
+              console.error("Error finishing workout:", error);
+              Alert.alert("Erreur", "Impossible de terminer la séance");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <>
       <StatusBar style="light" />
-      <View style={styles.container}>
+
+      <PRNotification
+        prs={newPRs}
+        visible={newPRs.length > 0}
+        onDismiss={() => {
+          markPRsSeen();
+          router.replace("/(tabs)");
+        }}
+      />
+
+      <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleCancelWorkout}>
@@ -220,6 +300,21 @@ export default function ActiveWorkoutScreen() {
               </View>
             </View>
 
+            {currentExercise &&
+              (() => {
+                const suggestion = getProgressionSuggestion(
+                  currentExercise.exercise.id
+                );
+                return suggestion ? (
+                  <ProgressionSuggestionCard
+                    suggestion={suggestion}
+                    onApply={() =>
+                      applyProgressionSuggestion(currentExercise.id)
+                    }
+                  />
+                ) : null;
+              })()}
+
             {/* Sets */}
             <View style={styles.setsContainer}>
               <Text style={styles.setsTitle}>Séries</Text>
@@ -230,6 +325,7 @@ export default function ActiveWorkoutScreen() {
                   setIndex={index}
                   set={set}
                   isBodyweight={currentExercise.exercise.is_bodyweight}
+                  isCardio={currentExercise.exercise.category === "cardio"}
                   onUpdateSet={(setData) =>
                     updateSet(currentExercise.id, index, setData)
                   }
@@ -275,7 +371,7 @@ export default function ActiveWorkoutScreen() {
           {/* Bottom Spacing */}
           <View style={{ height: 100 }} />
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </>
   );
 }

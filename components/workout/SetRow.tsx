@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ interface SetRowProps {
   setIndex: number;
   set: WorkoutSet;
   isBodyweight: boolean;
+  isCardio: boolean; // ✅ Nouveau prop
   onUpdateSet: (setData: Partial<WorkoutSet>) => void;
   onCompleteSet: () => void;
   onRemoveSet: () => void;
@@ -23,6 +24,7 @@ export const SetRow: React.FC<SetRowProps> = ({
   setIndex,
   set,
   isBodyweight,
+  isCardio, // ✅ Nouveau prop
   onUpdateSet,
   onCompleteSet,
   onRemoveSet,
@@ -30,6 +32,23 @@ export const SetRow: React.FC<SetRowProps> = ({
 }) => {
   const [localReps, setLocalReps] = useState(set.reps?.toString() || "");
   const [localWeight, setLocalWeight] = useState(set.weight?.toString() || "");
+  const [localDuration, setLocalDuration] = useState(
+    set.duration_seconds ? Math.floor(set.duration_seconds / 60).toString() : ""
+  );
+  const [localDistance, setLocalDistance] = useState(
+    set.distance_km?.toString() || ""
+  );
+
+  useEffect(() => {
+    setLocalReps(set.reps?.toString() || "");
+    setLocalWeight(set.weight?.toString() || "");
+    setLocalDuration(
+      set.duration_seconds
+        ? Math.floor(set.duration_seconds / 60).toString()
+        : ""
+    );
+    setLocalDistance(set.distance_km?.toString() || "");
+  }, [set.reps, set.weight, set.duration_seconds, set.distance_km]);
 
   const handleRepsChange = (text: string) => {
     setLocalReps(text);
@@ -47,20 +66,46 @@ export const SetRow: React.FC<SetRowProps> = ({
     }
   };
 
+  const handleDurationChange = (text: string) => {
+    setLocalDuration(text);
+    const minutes = parseInt(text);
+    if (!isNaN(minutes) || text === "") {
+      onUpdateSet({ duration_seconds: text === "" ? undefined : minutes * 60 });
+    }
+  };
+
+  const handleDistanceChange = (text: string) => {
+    setLocalDistance(text);
+    const distance = parseFloat(text);
+    if (!isNaN(distance) || text === "") {
+      onUpdateSet({ distance_km: text === "" ? undefined : distance });
+    }
+  };
+
   const handleComplete = () => {
     if (set.completed) {
-      // Décocher la série
       onUpdateSet({ completed: false });
     } else {
-      // Vérifier que les données sont saisies
-      if (!set.reps || (!isBodyweight && !set.weight)) {
-        return; // Ne pas permettre de valider sans données
+      // Validation différente selon le type d'exercice
+      let isValid = false;
+
+      if (isCardio) {
+        // Pour cardio : soit durée soit distance requise
+        isValid = !!(set.duration_seconds || set.distance_km);
+      } else {
+        // Pour musculation : reps requis, poids requis si pas bodyweight
+        isValid = !!(set.reps && (isBodyweight || set.weight));
       }
+
+      if (!isValid) return;
+
       onCompleteSet();
     }
   };
 
-  const isValid = set.reps && (isBodyweight || set.weight);
+  const isValid = isCardio
+    ? !!(set.duration_seconds || set.distance_km)
+    : !!(set.reps && (isBodyweight || set.weight));
 
   return (
     <View
@@ -75,32 +120,66 @@ export const SetRow: React.FC<SetRowProps> = ({
       </View>
 
       <View style={styles.inputs}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Reps</Text>
-          <TextInput
-            style={[styles.input, set.completed && styles.completedInput]}
-            value={localReps}
-            onChangeText={handleRepsChange}
-            placeholder="0"
-            keyboardType="numeric"
-            maxLength={3}
-            editable={!set.completed}
-          />
-        </View>
+        {isCardio ? (
+          // ✅ Interface CARDIO
+          <>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Temps (min)</Text>
+              <TextInput
+                style={[styles.input, set.completed && styles.completedInput]}
+                value={localDuration}
+                onChangeText={handleDurationChange}
+                placeholder="0"
+                keyboardType="numeric"
+                maxLength={4}
+                editable={!set.completed}
+              />
+            </View>
 
-        {!isBodyweight && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Poids (kg)</Text>
-            <TextInput
-              style={[styles.input, set.completed && styles.completedInput]}
-              value={localWeight}
-              onChangeText={handleWeightChange}
-              placeholder="0"
-              keyboardType="decimal-pad"
-              maxLength={6}
-              editable={!set.completed}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Distance (km)</Text>
+              <TextInput
+                style={[styles.input, set.completed && styles.completedInput]}
+                value={localDistance}
+                onChangeText={handleDistanceChange}
+                placeholder="0"
+                keyboardType="decimal-pad"
+                maxLength={6}
+                editable={!set.completed}
+              />
+            </View>
+          </>
+        ) : (
+          // ✅ Interface MUSCULATION (existante)
+          <>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Reps</Text>
+              <TextInput
+                style={[styles.input, set.completed && styles.completedInput]}
+                value={localReps}
+                onChangeText={handleRepsChange}
+                placeholder="0"
+                keyboardType="numeric"
+                maxLength={3}
+                editable={!set.completed}
+              />
+            </View>
+
+            {!isBodyweight && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Poids (kg)</Text>
+                <TextInput
+                  style={[styles.input, set.completed && styles.completedInput]}
+                  value={localWeight}
+                  onChangeText={handleWeightChange}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                  maxLength={6}
+                  editable={!set.completed}
+                />
+              </View>
+            )}
+          </>
         )}
       </View>
 

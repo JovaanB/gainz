@@ -10,12 +10,15 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useWorkoutStore } from "@/store/workoutStore";
+import { useProgressStore } from "@/store/progressStore";
 import { ProgressChart } from "@/components/ui/ProgressChart";
 import { ExerciseProgress } from "@/components/workout/ExerciseProgress";
+import { PersonalRecord } from "@/utils/progressCalculations";
 
 export default function HistoryScreen() {
   const router = useRouter();
   const { workoutHistory, isLoading, loadWorkoutHistory } = useWorkoutStore();
+  const { personalRecords, updateProgress } = useProgressStore();
 
   useEffect(() => {
     loadWorkoutHistory();
@@ -66,6 +69,92 @@ export default function HistoryScreen() {
     };
   };
 
+  const formatPRValue = (pr: PersonalRecord) => {
+    switch (pr.type) {
+      case "weight":
+        return `${pr.value}kg (${pr.reps} reps)`;
+      case "reps":
+        return `${pr.value} reps${pr.weight ? ` @ ${pr.weight}kg` : ""}`;
+      case "1rm":
+        return `${pr.value.toFixed(1)}kg (1RM estimé)`;
+      case "volume":
+        return `${pr.value}kg de volume`;
+      case "duration":
+        const minutes = Math.floor(pr.value / 60);
+        const seconds = pr.value % 60;
+        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+      case "distance":
+        return `${pr.value}km`;
+      case "speed":
+        return `${pr.value.toFixed(1)}km/h`;
+      default:
+        return `${pr.value}`;
+    }
+  };
+
+  const getPRTypeLabel = (type: string) => {
+    switch (type) {
+      case "weight":
+        return "Poids Max";
+      case "reps":
+        return "Reps Max";
+      case "1rm":
+        return "1RM";
+      case "volume":
+        return "Volume";
+      case "duration":
+        return "Temps Max";
+      case "distance":
+        return "Distance Max";
+      case "speed":
+        return "Vitesse Max";
+      default:
+        return type;
+    }
+  };
+
+  const getPRColor = (type: string) => {
+    switch (type) {
+      case "weight":
+        return "#FF6B35";
+      case "reps":
+        return "#34C759";
+      case "1rm":
+        return "#FFD60A";
+      case "volume":
+        return "#007AFF";
+      case "duration":
+        return "#5856D6";
+      case "distance":
+        return "#32D74B";
+      case "speed":
+        return "#FF9F0A";
+      default:
+        return "#8E8E93";
+    }
+  };
+
+  const getPRIcon = (type: string) => {
+    switch (type) {
+      case "weight":
+        return "barbell";
+      case "reps":
+        return "refresh-circle";
+      case "1rm":
+        return "trophy";
+      case "volume":
+        return "trending-up";
+      case "duration":
+        return "time";
+      case "distance":
+        return "map";
+      case "speed":
+        return "flash";
+      default:
+        return "star";
+    }
+  };
+
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const today = new Date();
@@ -98,6 +187,29 @@ export default function HistoryScreen() {
 
   const weeklyStats = getWeeklyStats();
   const completedWorkouts = workoutHistory.filter((w) => w.finished_at);
+
+  useEffect(() => {
+    if (completedWorkouts.length > 0) {
+      updateProgress(completedWorkouts);
+    }
+  }, [completedWorkouts.length]);
+
+  const getSortedPRs = () => {
+    return personalRecords
+      .sort((a, b) => {
+        // Priorité aux PRs récents (derniers 30 jours)
+        const recentCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const aIsRecent = a.date > recentCutoff;
+        const bIsRecent = b.date > recentCutoff;
+
+        if (aIsRecent && !bIsRecent) return -1;
+        if (!aIsRecent && bIsRecent) return 1;
+
+        // Sinon par date
+        return b.date - a.date;
+      })
+      .slice(0, 5);
+  };
 
   return (
     <View style={styles.container}>
@@ -135,6 +247,54 @@ export default function HistoryScreen() {
             </View>
           </View>
         </View>
+
+        {/* Recent PRs */}
+        {getSortedPRs().length > 0 && (
+          <View style={styles.prsSection}>
+            <Text style={styles.sectionTitle}>Records Personnels 🏆</Text>
+
+            {getSortedPRs().map((pr, index) => {
+              const prColor = getPRColor(pr.type);
+
+              return (
+                <View
+                  key={`${pr.exerciseId}-${pr.type}-${index}`}
+                  style={[styles.prCard, { borderLeftColor: prColor }]}
+                >
+                  <View style={styles.prHeader}>
+                    <View style={styles.prTitleContainer}>
+                      <View
+                        style={[styles.prIcon, { backgroundColor: prColor }]}
+                      >
+                        <Ionicons
+                          name={getPRIcon(pr.type) as any}
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      </View>
+                      <View style={styles.prTitleInfo}>
+                        <Text style={styles.prExercise}>{pr.exerciseName}</Text>
+                        <Text style={styles.prTypeLabel}>
+                          {getPRTypeLabel(pr.type)}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.prDate}>
+                      {new Date(pr.date).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </Text>
+                  </View>
+
+                  <Text style={[styles.prValue, { color: prColor }]}>
+                    {formatPRValue(pr)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Progress Chart */}
         {completedWorkouts.length > 0 && (
@@ -393,5 +553,95 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: "#8E8E93",
+  },
+  prsSection: {
+    marginBottom: 20,
+  },
+  prHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  prExercise: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+  prDate: {
+    fontSize: 12,
+    color: "#8E8E93",
+  },
+  prValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFD60A",
+    marginBottom: 8,
+  },
+  prTypeBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  prTypeweight: {
+    backgroundColor: "#FFE5E5",
+  },
+  prTypereps: {
+    backgroundColor: "#E8F5E8",
+  },
+  prType1rm: {
+    backgroundColor: "#FFF8E1",
+  },
+  prTypevolume: {
+    backgroundColor: "#E3F2FD",
+  },
+  prTypeText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#666",
+  },
+  prTypeduration: {
+    backgroundColor: "#EDE7F6",
+  },
+  prTypedistance: {
+    backgroundColor: "#E8F5E8",
+  },
+  prTypespeed: {
+    backgroundColor: "#FFF3E0",
+  },
+  prTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  prIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  prTitleInfo: {
+    flex: 1,
+  },
+  prTypeLabel: {
+    fontSize: 11,
+    color: "#8E8E93",
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  prCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
 });

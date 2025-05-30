@@ -23,7 +23,6 @@ export const useWorkoutPersistence = () => {
               notes:
                 (currentWorkout.notes || "") + "\n[Sauvegarde automatique]",
             });
-            console.log("Auto-saved current workout");
           } catch (error) {
             console.error("Auto-save failed:", error);
           }
