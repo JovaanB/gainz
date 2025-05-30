@@ -11,6 +11,7 @@ import {
   ScrollView,
   SafeAreaView,
   KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -187,9 +188,9 @@ export default function NewWorkoutScreen() {
                   placeholder="Ex: Push Day, Jambes, Full Body..."
                   placeholderTextColor="#C7C7CC"
                   autoFocus
-                  maxLength={50}
+                  maxLength={20}
                 />
-                <Text style={styles.charCount}>{workoutName.length}/50</Text>
+                <Text style={styles.charCount}>{workoutName.length}/20</Text>
               </View>
 
               <View style={styles.quickOptions}>
@@ -199,7 +200,10 @@ export default function NewWorkoutScreen() {
                     <TouchableOpacity
                       key={name}
                       style={styles.quickOption}
-                      onPress={() => setWorkoutName(name)}
+                      onPress={() => {
+                        setWorkoutName(name);
+                        Keyboard.dismiss();
+                      }}
                     >
                       <Text style={styles.quickOptionText}>{name}</Text>
                     </TouchableOpacity>

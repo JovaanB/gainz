@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { Workout, WorkoutExercise, WorkoutSet, Exercise } from "@/types";
 import { StorageService } from "@/services/storage";
-import { useToastStore } from "./toastStore";
 
 interface WorkoutStore {
   currentWorkout: Workout | null;
@@ -33,6 +32,7 @@ interface WorkoutStore {
   startRestTimer: (duration: number) => void;
   stopRestTimer: () => void;
   updateRestTimer: () => void;
+  addTimeToTimer: (seconds: number) => void;
   loadWorkoutHistory: () => Promise<void>;
   deleteWorkout: (workoutId: string) => Promise<void>;
 }
@@ -335,6 +335,19 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         restTimer: {
           ...restTimer,
           isActive: false,
+        },
+      });
+    }
+  },
+
+  addTimeToTimer: (seconds) => {
+    const { restTimer } = get();
+    if (restTimer.isActive) {
+      set({
+        restTimer: {
+          ...restTimer,
+          timeLeft: restTimer.timeLeft + seconds,
+          duration: restTimer.duration + seconds,
         },
       });
     }

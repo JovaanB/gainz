@@ -19,7 +19,6 @@ import { useProgressStore } from "@/store/progressStore";
 import { PRNotification } from "@/components/workout/PRNotification";
 import { ProgressionSuggestionCard } from "@/components/workout/ProgressionSuggestion";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useToastStore } from "@/store/toastStore";
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
@@ -31,7 +30,6 @@ export default function ActiveWorkoutScreen() {
     restTimer,
     finishWorkout,
     cancelWorkout,
-    clearCurrentWorkout,
     updateSet,
     addSet,
     removeSet,
@@ -40,6 +38,7 @@ export default function ActiveWorkoutScreen() {
     goToPreviousExercise,
     stopRestTimer,
     updateRestTimer,
+    addTimeToTimer,
     workoutHistory,
   } = useWorkoutStore();
 
@@ -241,6 +240,8 @@ export default function ActiveWorkoutScreen() {
           timeLeft={restTimer.timeLeft}
           duration={restTimer.duration}
           onSkip={stopRestTimer}
+          onAddTime={addTimeToTimer}
+          exerciseName={currentExercise.exercise.name}
         />
 
         <ScrollView style={styles.content}>

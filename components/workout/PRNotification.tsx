@@ -41,7 +41,6 @@ export const PRNotification: React.FC<PRNotificationProps> = ({
             friction: 8,
           }),
         ]),
-        // Auto-dismiss après 5 secondes
         Animated.delay(5000),
         Animated.parallel([
           Animated.timing(slideAnim, {
