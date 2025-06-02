@@ -75,6 +75,7 @@ export interface UserProgram {
 export interface ProgramProgress {
   sessionId: string;
   date: number;
+  duration: number;
   exercises: {
     exerciseId: string;
     sets: { weight: number; reps: number; completed: boolean }[];

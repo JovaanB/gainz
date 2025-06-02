@@ -170,19 +170,16 @@ export const useTemplateStore = create<TemplateState>()(
 
         if (currentProgram && selectedTemplate) {
           const sessionId = `${currentProgram.templateId}_${currentProgram.currentSession}`;
-          const templateSession = selectedTemplate.sessions[currentProgram.currentSession];
+          const sessionIndex = currentProgram.currentSession % selectedTemplate.sessions.length;
+          const templateSession = selectedTemplate.sessions[sessionIndex];
 
           if (!templateSession) {
             console.error("Session template not found");
             return;
           }
 
-          // Calculer la durée de la séance
-          const duration = sessionData.exercises.reduce((total, ex) => {
-            return total + ex.sets.reduce((setTotal, set: ProgramSet) => {
-              return setTotal + (set.duration_seconds || 0) + (set.rest_seconds || 90);
-            }, 0);
-          }, 0);
+          // Calculer la durée de la séance en secondes
+          const duration = Math.floor((Date.now() - sessionData.date) / 1000);
 
           // Créer un workout à partir de la session
           const workout: Workout = {
@@ -190,7 +187,7 @@ export const useTemplateStore = create<TemplateState>()(
             name: templateSession.name,
             date: sessionData.date,
             started_at: sessionData.date,
-            finished_at: sessionData.date + duration * 1000,
+            finished_at: Date.now(),
             exercises: sessionData.exercises.map((ex) => ({
               id: ex.exerciseId,
               exercise: {
@@ -201,9 +198,9 @@ export const useTemplateStore = create<TemplateState>()(
                 is_bodyweight: false,
                 sets: ex.sets.length,
               },
-              sets: ex.sets.map((set: ProgramSet) => ({
+              sets: ex.sets.map((set) => ({
                 ...set,
-                rest_seconds: set.rest_seconds || 90,
+                rest_seconds: 90,
               })),
               completed: true,
               order_index: 0,
@@ -219,24 +216,21 @@ export const useTemplateStore = create<TemplateState>()(
           // Sauvegarder le workout
           await StorageService.saveWorkout(workout);
 
-          const updatedProgram: UserProgram = {
+          // Mettre à jour le programme
+          const updatedProgram = {
             ...currentProgram,
             completedSessions: [...currentProgram.completedSessions, sessionId],
+            progressHistory: [
+              ...currentProgram.progressHistory,
+              {
+                ...sessionData,
+                duration,
+              },
+            ],
             currentSession: currentProgram.currentSession + 1,
-            progressHistory: [...currentProgram.progressHistory, sessionData],
           };
 
-          const totalSessionsInWeek = selectedTemplate.sessions.length;
-          if (updatedProgram.currentSession >= totalSessionsInWeek) {
-            updatedProgram.currentWeek += 1;
-            updatedProgram.currentSession = 0;
-          }
-
-          const newState = {
-            currentProgram: updatedProgram,
-          };
-
-          set(newState);
+          set({ currentProgram: updatedProgram });
 
           // Sauvegarder dans AsyncStorage
           try {
@@ -245,11 +239,11 @@ export const useTemplateStore = create<TemplateState>()(
               ...savedData,
               [STORAGE_KEY]: {
                 ...savedData[STORAGE_KEY],
-                ...newState,
+                currentProgram: updatedProgram,
               },
             });
           } catch (error) {
-            console.error("Error saving session completion:", error);
+            console.error("Error saving program:", error);
           }
         }
       },

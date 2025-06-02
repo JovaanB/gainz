@@ -67,6 +67,23 @@ export default function NewWorkoutScreen() {
     // Démarre la séance
     startWorkout(workoutName, selectedExercises);
 
+    // Vérifie que la séance a bien été démarrée
+    const { currentWorkout } = useWorkoutStore.getState();
+    if (!currentWorkout) {
+      console.error("Erreur lors du démarrage de la séance");
+      Alert.alert(
+        "Erreur",
+        "Impossible de démarrer la séance. Veuillez réessayer.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/workout/new"),
+          },
+        ]
+      );
+      return;
+    }
+
     // Navigation vers l'écran de workout actif
     router.replace("/workout/active");
   };

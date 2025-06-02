@@ -8,6 +8,7 @@ import {
   Animated,
   StatusBar,
   Platform,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -33,13 +34,16 @@ export const RestTimer: React.FC<RestTimerProps> = ({
 
   // Animations
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
-  const progressAnim = React.useRef(new Animated.Value(0)).current;
+  const progressAnim = React.useRef(new Animated.Value(0)).current; // 0 to 1 for linear progress
   const buttonPulseAnim = React.useRef(new Animated.Value(1)).current;
 
-  // Animation de progression
+  const { width } = Dimensions.get("window");
+  const calculatedFontSize = width * 0.45;
+
+  // Animation de progression (linear bar)
   useEffect(() => {
     Animated.timing(progressAnim, {
-      toValue: progress,
+      toValue: progress, // 0 (start) to 1 (end)
       duration: 1000,
       useNativeDriver: false,
     }).start();
@@ -151,45 +155,43 @@ export const RestTimer: React.FC<RestTimerProps> = ({
           <View style={styles.headerRight} />
         </View>
 
-        {/* Timer principal */}
-        <View style={styles.fullscreenTimerContainer}>
-          {/* Cercle de progression */}
-          <View style={styles.circleContainer}>
-            <View style={styles.circleBackground}>
-              <Animated.View
-                style={[
-                  styles.circleProgress,
-                  {
-                    transform: [
-                      {
-                        rotate: progressAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ["0deg", "360deg"],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            </View>
-
-            <Animated.View
-              style={[
-                styles.timerTextContainer,
-                { transform: [{ scale: pulseAnim }] },
-              ]}
+        {/* Timer principal - Texte et statut */}
+        <View style={styles.fullscreenTimerTextContainer}>
+          <Animated.View
+            style={[
+              styles.timerTextContainer,
+              { transform: [{ scale: pulseAnim }] },
+            ]}
+          >
+            <Text
+              style={[styles.fullscreenTime, { fontSize: calculatedFontSize }]}
             >
-              <Text style={styles.fullscreenTime}>{formatTime(timeLeft)}</Text>
+              {formatTime(timeLeft)}
+            </Text>
 
-              {timeLeft === 0 ? (
-                <Text style={styles.finishedText}>Terminé !</Text>
-              ) : timeLeft <= 10 ? (
-                <Text style={styles.countdownText}>Presque fini...</Text>
-              ) : (
-                <Text style={styles.statusText}>En cours</Text>
-              )}
-            </Animated.View>
-          </View>
+            {timeLeft === 0 ? (
+              <Text style={styles.finishedText}>Terminé !</Text>
+            ) : timeLeft <= 10 ? (
+              <Text style={styles.countdownText}>Presque fini...</Text>
+            ) : (
+              <Text style={styles.statusText}>En cours</Text>
+            )}
+          </Animated.View>
+        </View>
+
+        {/* Barre de progression linéaire */}
+        <View style={styles.progressBarContainer}>
+          <Animated.View
+            style={[
+              styles.progressBarFill,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                }),
+              },
+            ]}
+          />
         </View>
 
         {/* Contrôles principaux améliorés */}
@@ -240,13 +242,6 @@ export const RestTimer: React.FC<RestTimerProps> = ({
             </Animated.View>
           )}
         </View>
-
-        {/* Indicateur de tap pour fermer */}
-        <View style={styles.tapIndicator}>
-          <Text style={styles.tapIndicatorText}>
-            Appuyez sur l'écran pour fermer
-          </Text>
-        </View>
       </View>
     </Modal>
   );
@@ -294,63 +289,44 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.8)",
     marginTop: 2,
   },
-  fullscreenTimerContainer: {
+  fullscreenTimerTextContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  circleContainer: {
-    width: 260,
-    height: 260,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  circleBackground: {
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    borderWidth: 8,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "absolute",
-  },
-  circleProgress: {
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    borderWidth: 8,
-    borderColor: "rgba(255, 255, 255, 0.9)",
-    borderTopColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: "transparent",
+    width: "100%",
+    height: "100%",
   },
   timerTextContainer: {
     alignItems: "center",
     justifyContent: "center",
+    width: "100%",
+    height: "100%",
   },
   fullscreenTime: {
-    fontSize: 56,
     fontWeight: "300",
     color: "white",
     fontVariant: ["tabular-nums"],
+    textAlign: "center",
   },
   finishedText: {
-    fontSize: 20,
+    fontSize: 40,
     fontWeight: "600",
     color: "white",
-    marginTop: 8,
+    marginTop: 16,
+    textAlign: "center",
   },
   countdownText: {
-    fontSize: 16,
+    fontSize: 32,
     fontWeight: "500",
     color: "rgba(255, 255, 255, 0.9)",
-    marginTop: 8,
+    marginTop: 16,
+    textAlign: "center",
   },
   statusText: {
-    fontSize: 14,
+    fontSize: 28,
     color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 8,
+    marginTop: 16,
+    textAlign: "center",
   },
   quickActions: {
     flexDirection: "row",
@@ -427,5 +403,19 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.7)",
     fontSize: 12,
     fontStyle: "italic",
+  },
+  progressBarContainer: {
+    height: 16,
+    width: "80%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 10,
+    marginTop: 20,
+    overflow: "hidden",
+    alignSelf: "center",
+  },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: "white",
+    borderRadius: 10,
   },
 });

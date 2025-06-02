@@ -28,7 +28,7 @@ interface WorkoutStore {
   templateSessionId?: string;
 
   startWorkout: (name: string, selectedExercises: Exercise[]) => void;
-  finishWorkout: () => Promise<void>;
+  finishWorkout: () => Promise<Workout>;
   cancelWorkout: () => void;
   clearCurrentWorkout: () => void;
   addExerciseToWorkout: (exercise: WorkoutExercise) => void;
@@ -63,6 +63,8 @@ interface WorkoutStore {
     setIndex: number,
     data: any
   ) => void;
+  saveAndFinalizeWorkout: () => Promise<Workout>;
+  addWorkoutToHistory: (workout: Workout) => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
@@ -75,12 +77,17 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   restTimer: {
     isActive: false,
     timeLeft: 0,
-    duration: 90, // 90 secondes par défaut
+    duration: 90,
   },
   workoutType: "free",
   templateSessionId: undefined,
 
   startWorkout: (name: string, selectedExercises: Exercise[]) => {
+    if (!selectedExercises || selectedExercises.length === 0) {
+      console.error("Aucun exercice sélectionné pour démarrer la séance");
+      return;
+    }
+
     const workoutExercises: WorkoutExercise[] = selectedExercises.map(
       (exercise, index) => ({
         id: `${exercise.id}_${Date.now()}_${index}`,
@@ -116,41 +123,55 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       isRecording: true,
       currentExerciseIndex: 0,
       currentWorkoutExercise: workoutExercises[0].exercise,
+      workoutType: "free" as const,
     });
+
+    // Vérification après la mise à jour
+    const { currentWorkout } = get();
+    if (!currentWorkout) {
+      console.error("Erreur: currentWorkout n'a pas été correctement initialisé");
+    }
   },
 
-  finishWorkout: async () => {
+  saveAndFinalizeWorkout: async (): Promise<Workout> => {
     const { currentWorkout, workoutHistory } = get();
-    if (!currentWorkout) return;
-
+    if (!currentWorkout) {
+      throw new Error("Aucune séance en cours à finaliser");
+    }
     try {
       const finishedWorkout = {
         ...currentWorkout,
         finished_at: Date.now(),
+        completed: true
       };
-
       await StorageService.saveWorkout(finishedWorkout);
-
       const updatedHistory = [finishedWorkout, ...workoutHistory];
-
       set({
-        currentWorkout: finishedWorkout,
-        isRecording: false,
-        currentExerciseIndex: 0,
         workoutHistory: updatedHistory,
-        restTimer: { isActive: false, timeLeft: 0, duration: 90 },
       });
+      return finishedWorkout;
     } catch (error) {
-      console.error("Error finishing workout:", error);
+      console.error("Error saving and finalizing workout:", error);
+      throw error;
     }
   },
 
+  finishWorkout: async (): Promise<Workout> => {
+     // Cette fonction est principalement appelée par handleSessionCompleted
+     // Elle déclenchera la sauvegarde et la détection de PRs
+     const finalizedWorkout = await get().saveAndFinalizeWorkout();
+     return finalizedWorkout; // Retourner le workout finalisé
+     // Le nettoyage de l'état (currentWorkout = null) se fera plus tard via handleSessionFinalCleanup
+  },
+
   cancelWorkout: () => {
+    // Cette fonction sera utilisée par handleSessionFinalCleanup pour nettoyer l'état de la séance en cours
     set({
       currentWorkout: null,
       isRecording: false,
       currentExerciseIndex: 0,
       restTimer: { isActive: false, timeLeft: 0, duration: 90 },
+      // Ne pas toucher à workoutHistory ici
     });
   },
 
@@ -333,14 +354,45 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     });
   },
 
-  goToExercise: (index) => {
-    const { currentWorkout } = get();
-    if (!currentWorkout) return;
+  goToExercise: (nextIndex: number) => {
+    const { currentWorkout, workoutType } = get();
     
-    set({ 
-      currentExerciseIndex: index,
-      currentWorkoutExercise: currentWorkout.exercises[index].exercise,
+    if (!currentWorkout) {
+      return;
+    }
+
+    if (nextIndex < 0 || nextIndex >= currentWorkout.exercises.length) {
+      return;
+    }
+
+    const updatedExercises = currentWorkout.exercises.map((exercise, index) => {
+      if (index === nextIndex) {
+        const updatedSets = exercise.sets.map((set) => {
+          if (!set.completed) {
+            return {
+              ...set,
+              reps: undefined,
+              weight: undefined,
+            };
+          }
+          return set;
+        });
+        return { ...exercise, sets: updatedSets };
+      }
+      return exercise;
     });
+
+    set({
+      currentExerciseIndex: nextIndex,
+      currentWorkout: {
+        ...currentWorkout,
+        exercises: updatedExercises,
+      },
+      currentWorkoutExercise: currentWorkout.exercises[nextIndex].exercise,
+    });
+
+    // Vérification après la mise à jour
+    const { currentWorkout: updatedWorkout } = get();
   },
 
   goToPreviousExercise: () => {
@@ -448,19 +500,12 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
             return null;
           }
 
-          // Calculer la durée de la séance
-          const duration = session.exercises.reduce((total, ex) => {
-            return total + ex.sets.reduce((setTotal, set: ProgramSet) => {
-              return setTotal + (set.duration_seconds || 0) + (set.rest_seconds || 90);
-            }, 0);
-          }, 0);
-
           return {
             id: `template_${session.sessionId}`,
             name: templateSession.name,
             date: session.date,
             started_at: session.date,
-            finished_at: session.date + duration * 1000, // Ajouter la durée en millisecondes
+            finished_at: session.date + (session.duration || 0) * 1000,
             exercises: session.exercises.map((ex) => {
               const muscleGroups = getMuscleGroupsFromExerciseId(ex.exerciseId);
               const exercise: Exercise = {
@@ -522,23 +567,33 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   startTemplateWorkout: (sessionId, templateExercises) => {
+    
     const convertedExercises = get().convertTemplateToWorkout(templateExercises);
+
+    const workout = {
+      id: `${sessionId}_${Date.now()}`,
+      name: `Session ${sessionId}`,
+      date: Date.now(),
+      started_at: Date.now(),
+      exercises: convertedExercises,
+      completed: false,
+      user_id: "temp-user",
+    };
 
     set({
       workoutType: "template",
       templateSessionId: sessionId,
-      currentWorkout: {
-        id: `${sessionId}_${Date.now()}`,
-        name: `Session ${sessionId}`,
-        date: Date.now(),
-        started_at: Date.now(),
-        exercises: convertedExercises,
-        completed: false,
-        user_id: "temp-user",
-      },
+      currentWorkout: workout,
       currentWorkoutExercise: convertedExercises[0].exercise,
       currentExerciseIndex: 0,
+      isRecording: true,
     });
+
+    // Vérification après la mise à jour
+    const { currentWorkout } = get();
+    if (!currentWorkout) {
+      console.error("Erreur: currentWorkout n'a pas été correctement initialisé");
+    }
   },
 
   convertTemplateToWorkout: (templateExercises: TemplateExercise[]): WorkoutExercise[] => {
@@ -584,6 +639,12 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         exercises: updatedExercises,
       },
     });
+  },
+
+  addWorkoutToHistory: (workout: Workout) => {
+    set(state => ({
+      workoutHistory: [workout, ...state.workoutHistory],
+    }));
   },
 }));
 

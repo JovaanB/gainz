@@ -172,17 +172,8 @@ export default function HistoryScreen() {
     });
   };
 
-  const formatDuration = (startTime: number, endTime?: number) => {
-    if (!endTime) return "Incomplète";
-
-    const duration = Math.floor((endTime - startTime) / 1000 / 60);
-    const hours = Math.floor(duration / 60);
-    const minutes = duration % 60;
-
-    if (hours > 0) {
-      return `${hours}h ${minutes} min`;
-    }
-    return `${minutes} min`;
+  const formatDuration = (startTime: number, endTime: number) => {
+    return Math.floor((endTime - startTime) / 1000 / 60);
   };
 
   const weeklyStats = getWeeklyStats();
@@ -330,15 +321,15 @@ export default function HistoryScreen() {
                     <View style={styles.workoutTitleContainer}>
                       <Text style={styles.workoutName}>{workout.name}</Text>
                     </View>
-                    <Text style={styles.workoutMeta}>
-                      {formatDuration(workout.started_at, workout.finished_at)}{" "}
-                      • {workout.exercises.length} exercices •{" "}
-                      {workout.exercises.reduce(
-                        (total, ex) =>
-                          total + ex.sets.filter((s) => s.completed).length,
-                        0
-                      )}{" "}
-                      séries
+                    <Text style={styles.workoutDetails}>
+                      {workout.exercises.length} exercices •{" "}
+                      {workout.finished_at
+                        ? formatDuration(
+                            workout.started_at,
+                            workout.finished_at
+                          )
+                        : "en cours"}{" "}
+                      min
                     </Text>
                   </View>
 
@@ -490,7 +481,7 @@ const styles = StyleSheet.create({
     color: "#1C1C1E",
     marginBottom: 4,
   },
-  workoutMeta: {
+  workoutDetails: {
     fontSize: 13,
     color: "#666",
   },

@@ -19,9 +19,6 @@ export const useWorkoutPersistence = () => {
             // Sauvegarde de secours de la séance en cours
             await StorageService.saveWorkout({
               ...currentWorkout,
-              // Marque comme sauvegarde temporaire
-              notes:
-                (currentWorkout.notes || "") + "\n[Sauvegarde automatique]",
             });
           } catch (error) {
             console.error("Auto-save failed:", error);

@@ -17,7 +17,6 @@ export const isBodyweightExercise = (exerciseId: string): boolean => {
 };
 
 export const getSuggestedWeight = (exerciseId: string): number => {
-  // TODO: Implémenter la logique de suggestion de poids basée sur l'historique
   return 0;
 };
 

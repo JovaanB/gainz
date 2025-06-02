@@ -65,7 +65,7 @@ export default function TemplateDetailScreen() {
           text: "Démarrer",
           onPress: () => {
             startProgram(template.id);
-            router.push("/workout/active?mode=free");
+            router.push("/workout/active?mode=template");
           },
         },
       ]

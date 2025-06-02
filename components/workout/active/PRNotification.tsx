@@ -15,6 +15,8 @@ interface PRNotificationProps {
   onDismiss: () => void;
 }
 
+const MAX_PRS = 5;
+
 export const PRNotification: React.FC<PRNotificationProps> = ({
   prs,
   visible,
@@ -25,7 +27,6 @@ export const PRNotification: React.FC<PRNotificationProps> = ({
 
   useEffect(() => {
     if (visible && prs.length > 0) {
-      // Animation d'entrée spectaculaire
       Animated.sequence([
         Animated.parallel([
           Animated.spring(slideAnim, {
@@ -150,7 +151,7 @@ export const PRNotification: React.FC<PRNotificationProps> = ({
         </View>
 
         <View style={styles.content}>
-          {prs.slice(0, 3).map((pr, index) => {
+          {prs.slice(0, MAX_PRS).map((pr, index) => {
             const color = getPRColor(pr.type);
             return (
               <View key={`${pr.exerciseId}-${pr.type}`} style={styles.prItem}>
@@ -169,9 +170,10 @@ export const PRNotification: React.FC<PRNotificationProps> = ({
             );
           })}
 
-          {prs.length > 3 && (
+          {prs.length > MAX_PRS && (
             <Text style={styles.moreText}>
-              +{prs.length - 3} autre{prs.length - 3 > 1 ? "s" : ""} PR !
+              +{prs.length - MAX_PRS} autre{prs.length - MAX_PRS > 1 ? "s" : ""}{" "}
+              PR !
             </Text>
           )}
         </View>
@@ -189,7 +191,7 @@ export const PRNotification: React.FC<PRNotificationProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    top: 0,
+    top: 10,
     left: 16,
     right: 16,
     zIndex: 1000,

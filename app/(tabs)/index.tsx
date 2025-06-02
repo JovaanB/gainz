@@ -46,8 +46,15 @@ export default function HomeScreen() {
   const formatDuration = (startTime: number, endTime?: number) => {
     if (!endTime) return "En cours...";
 
-    const duration = Math.floor((endTime - startTime) / 1000 / 60);
-    return `${duration}min`;
+    // Calcul hours minutes and seconds
+    const duration = Math.floor((endTime - startTime) / 1000);
+    const hours = Math.floor(duration / 3600);
+    const minutes = Math.floor((duration % 3600) / 60);
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}min`;
+    }
+    return `${minutes}min`;
   };
 
   const startNewWorkout = () => {
@@ -148,8 +155,10 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 <Text style={styles.workoutMeta}>
-                  {formatDuration(workout.started_at, workout.finished_at)} •{" "}
-                  {workout.exercises.length} exercices
+                  {workout.finished_at
+                    ? formatDuration(workout.started_at, workout.finished_at)
+                    : "en cours"}{" "}
+                  • {workout.exercises.length} exercices
                 </Text>
               </TouchableOpacity>
             ))
@@ -163,11 +172,6 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
-
-      {/* Floating Action Button */}
-      {/* <TouchableOpacity style={styles.fab} onPress={startNewWorkout}>
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity> */}
 
       <View style={styles.quickActions}>
         <Text style={styles.sectionTitle}>Actions Rapides</Text>
