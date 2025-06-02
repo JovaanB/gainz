@@ -10,8 +10,9 @@
       "@/hooks/*": ["./hooks/*"],
       "@/store/*": ["./store/*"],
       "@/services/*": ["./services/*"],
+      "@/types/*": ["./types/*"],
       "@/utils/*": ["./utils/*"],
-      "@/types/*": ["./types/*"]
+      "@/test/*": ["./test/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]

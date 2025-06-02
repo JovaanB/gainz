@@ -39,9 +39,10 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="workout" options={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="workout" />
+        <Stack.Screen name="templates/index" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

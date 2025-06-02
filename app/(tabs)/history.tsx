@@ -327,7 +327,9 @@ export default function HistoryScreen() {
               >
                 <View style={styles.workoutHeader}>
                   <View style={styles.workoutInfo}>
-                    <Text style={styles.workoutName}>{workout.name}</Text>
+                    <View style={styles.workoutTitleContainer}>
+                      <Text style={styles.workoutName}>{workout.name}</Text>
+                    </View>
                     <Text style={styles.workoutMeta}>
                       {formatDuration(workout.started_at, workout.finished_at)}{" "}
                       • {workout.exercises.length} exercices •{" "}
@@ -354,6 +356,12 @@ export default function HistoryScreen() {
 
                 {/* Quick Stats */}
                 <View style={styles.quickStats}>
+                  {workout.is_template && (
+                    <View style={styles.templateBadge}>
+                      <Ionicons name="book" size={12} color="#007AFF" />
+                      <Text style={styles.templateBadgeText}>Programme</Text>
+                    </View>
+                  )}
                   {workout.exercises.slice(0, 3).map((exercise, index) => (
                     <View key={index} style={styles.exerciseTag}>
                       <Text style={styles.exerciseTagText}>
@@ -643,5 +651,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
+  },
+  workoutTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  templateBadge: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#E6F3FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  templateBadgeText: {
+    fontSize: 11,
+    color: "#007AFF",
+    fontWeight: "500",
   },
 });

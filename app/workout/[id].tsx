@@ -27,7 +27,7 @@ export default function WorkoutDetailScreen() {
 
   if (!workout) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#007AFF" />
@@ -38,16 +38,15 @@ export default function WorkoutDetailScreen() {
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Cette séance n'existe plus.</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString("fr-FR", {
-      weekday: "long",
       year: "numeric",
-      month: "long",
+      month: "numeric",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
@@ -309,11 +308,9 @@ Généré avec Gainz 💪`;
           </View>
 
           {/* Volume ou temps cardio selon le type d'entraînement */}
-          {calculateTotalVolume() > 0 ? (
+          {totalVolume > 0 ? (
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {Math.round(calculateTotalVolume() / 1000)}t
-              </Text>
+              <Text style={styles.statNumber}>{totalVolume} kg</Text>
               <Text style={styles.statLabel}>Volume</Text>
             </View>
           ) : getTotalCardioTime() > 0 ? (

@@ -8,14 +8,24 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useWorkoutStore } from "@/store/workoutStore";
+import { useTemplateStore } from "../../store/templateStore";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { workoutHistory, isLoading, loadWorkoutHistory } = useWorkoutStore();
+  const { currentProgram, selectedTemplate, loadTemplates, getProgramStats } =
+    useTemplateStore();
 
   useEffect(() => {
     loadWorkoutHistory();
   }, []);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
+
+  const programStats = getProgramStats();
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -58,13 +68,65 @@ export default function HomeScreen() {
               {
                 workoutHistory.filter((w) => {
                   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-                  return w.started_at > weekAgo;
+                  return w.date > weekAgo;
                 }).length
               }
             </Text>
             <Text style={styles.statLabel}>CETTE SEMAINE</Text>
           </View>
         </View>
+
+        {currentProgram && selectedTemplate && (
+          <View style={styles.currentProgramCard}>
+            <View style={styles.programHeader}>
+              <View style={styles.programInfo}>
+                <Text style={styles.programTitle}>{selectedTemplate.name}</Text>
+                <Text style={styles.programWeek}>
+                  Semaine {programStats.currentWeek} / {programStats.totalWeeks}
+                </Text>
+                <Text style={styles.programSessions}>
+                  {programStats.completedSessions} /{" "}
+                  {programStats.totalSessions} sessions
+                </Text>
+              </View>
+              <View style={styles.progressCircle}>
+                <Text style={styles.progressText}>
+                  {programStats.progressPercent}%
+                </Text>
+              </View>
+            </View>
+
+            {/* Barre de progression détaillée */}
+            <View style={styles.detailedProgress}>
+              <View style={styles.progressBarContainer}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${programStats.progressPercent}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressDetails}>
+                {programStats.remainingSessions} sessions restantes
+              </Text>
+              {programStats.estimatedCompletion && (
+                <Text style={styles.estimatedCompletion}>
+                  Fin estimée :{" "}
+                  {programStats.estimatedCompletion.toLocaleDateString()}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.continueButton}
+              onPress={() => router.push("/workout/active?mode=template")}
+            >
+              <Text style={styles.continueButtonText}>
+                Continuer le programme
+              </Text>
+              <Ionicons name="arrow-forward" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Recent Workouts */}
         <View style={styles.section}>
@@ -82,7 +144,7 @@ export default function HomeScreen() {
                 <View style={styles.workoutHeader}>
                   <Text style={styles.workoutName}>{workout.name}</Text>
                   <Text style={styles.workoutDate}>
-                    {formatDate(workout.started_at)}
+                    {formatDate(workout.date)}
                   </Text>
                 </View>
                 <Text style={styles.workoutMeta}>
@@ -103,9 +165,33 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={startNewWorkout}>
+      {/* <TouchableOpacity style={styles.fab} onPress={startNewWorkout}>
         <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
+
+      <View style={styles.quickActions}>
+        <Text style={styles.sectionTitle}>Actions Rapides</Text>
+
+        <View style={styles.actionsGrid}>
+          <TouchableOpacity
+            style={[styles.actionCard, styles.freeWorkoutCard]}
+            onPress={() => router.push("/workout/new")}
+          >
+            <Ionicons name="barbell" size={32} color="#007AFF" />
+            <Text style={styles.actionTitle}>Séance Libre</Text>
+            <Text style={styles.actionSubtitle}>Créer ma propre séance</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionCard, styles.templateCard]}
+            onPress={() => router.push("/templates/")}
+          >
+            <Ionicons name="library" size={32} color="#34C759" />
+            <Text style={styles.actionTitle}>Programmes</Text>
+            <Text style={styles.actionSubtitle}>Suivre un programme</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
@@ -150,12 +236,12 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1C1C1E",
-    marginBottom: 12,
-  },
+  // sectionTitle: {
+  //   fontSize: 18,
+  //   fontWeight: "600",
+  //   color: "#1C1C1E",
+  //   marginBottom: 12,
+  // },
   workoutCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
@@ -233,5 +319,161 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "#FFFFFF",
+  },
+  currentProgramCard: {
+    backgroundColor: "white",
+    marginHorizontal: 16,
+    marginVertical: 12,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  programHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  programInfo: {
+    flex: 1,
+  },
+  programTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+  programWeek: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  progressCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#E6F3FF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#007AFF",
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#007AFF",
+  },
+  nextSession: {
+    marginBottom: 16,
+  },
+  nextSessionLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  nextSessionName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+  continueButton: {
+    flexDirection: "row",
+    backgroundColor: "#007AFF",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  continueButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  // NOUVEAUX STYLES pour les actions rapides
+  quickActions: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1C1C1E",
+    marginBottom: 12,
+  },
+  actionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  actionCard: {
+    width: "48%",
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  freeWorkoutCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: "#007AFF",
+  },
+  templateCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: "#34C759",
+  },
+  actionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1C1C1E",
+    marginTop: 8,
+    marginBottom: 2,
+    textAlign: "center",
+  },
+  actionSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  programSessions: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+  detailedProgress: {
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  progressBarContainer: {
+    height: 6,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 3,
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: "#007AFF",
+    borderRadius: 3,
+  },
+  progressDetails: {
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  estimatedCompletion: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginTop: 4,
+    fontStyle: "italic",
   },
 });
