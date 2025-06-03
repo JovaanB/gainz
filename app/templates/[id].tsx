@@ -7,12 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useTemplateStore } from "../../store/templateStore";
 import { WorkoutTemplate } from "../../types/templates";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TemplateDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

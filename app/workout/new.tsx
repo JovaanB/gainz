@@ -22,6 +22,8 @@ import { WORKOUT_TEMPLATES, WorkoutTemplate } from "@/data/workoutTemplates";
 
 type Step = "name" | "template" | "exercises";
 
+const SUGGESTIONS = ["Push Day", "Pull Day", "Jambes", "Full Body", "Cardio"];
+
 export default function NewWorkoutScreen() {
   const router = useRouter();
   const [workoutName, setWorkoutName] = useState("");
@@ -212,20 +214,18 @@ export default function NewWorkoutScreen() {
 
               <View style={styles.quickOptions}>
                 <Text style={styles.quickOptionsTitle}>Suggestions :</Text>
-                {["Push Day", "Pull Day", "Jambes", "Full Body", "Cardio"].map(
-                  (name) => (
-                    <TouchableOpacity
-                      key={name}
-                      style={styles.quickOption}
-                      onPress={() => {
-                        setWorkoutName(name);
-                        Keyboard.dismiss();
-                      }}
-                    >
-                      <Text style={styles.quickOptionText}>{name}</Text>
-                    </TouchableOpacity>
-                  )
-                )}
+                {SUGGESTIONS.map((name) => (
+                  <TouchableOpacity
+                    key={name}
+                    style={styles.quickOption}
+                    onPress={() => {
+                      setWorkoutName(name);
+                      Keyboard.dismiss();
+                    }}
+                  >
+                    <Text style={styles.quickOptionText}>{name}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </ScrollView>
           </KeyboardAvoidingView>

@@ -8,8 +8,8 @@ import { Workout, Exercise,  } from '@/types';
 import {
   normalizeExercise,
   formatReps,
-  isBodyweightExercise,
 } from '@/utils/workoutUtils';
+import { isBodyweightExercise } from '@/utils/exerciseUtils';
 
 interface UnifiedExercise {
   id: string;
@@ -176,10 +176,10 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   }, [sessionStartTime]);
 
   // Fonctions utilitaires
-  const getSuggestedWeight = (exerciseId: string): number => {
-    if (isBodyweightExercise(exerciseId)) return 0;
+  const getSuggestedWeight = (exercise: Exercise): number => {
+    if (isBodyweightExercise(exercise)) return 0;
 
-    const suggestionWeight = getProgressionSuggestion(exerciseId)?.currentBest.weight;
+    const suggestionWeight = getProgressionSuggestion(exercise.id)?.currentBest.weight;
 
     const weightMap: { [key: string]: number } = {
       bench_press: 60,
@@ -192,7 +192,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
       barbell_curls: 20,
     };
 
-    return suggestionWeight || weightMap[exerciseId] || 20;
+    return suggestionWeight || weightMap[exercise.id] || 20;
   };
 
   const getCurrentExerciseTargets = () => {
@@ -215,8 +215,8 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     };
   };
 
-  const bodyWeightExercise =
-  isBodyweightExercise(currentExerciseData?.id || '') ||
+  const bodyWeightExercise = currentExerciseData ?
+  isBodyweightExercise(currentExerciseData) :
   currentWorkoutExercise?.exercise.is_bodyweight === true;
 
   const getSessionProgress = () => {
@@ -233,7 +233,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   // Handlers
   const updateSetData = (
     setIndex: number,
-    field: 'weight' | 'reps',
+    field: 'weight' | 'reps' | 'duration_seconds' | 'distance_km',
     value: number
   ) => {
     if (!currentExerciseId) return;
@@ -262,10 +262,20 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   ) => {
     if (!currentExerciseId) return;
 
+    const isCardio = currentExerciseData?.name.toLowerCase().includes("course") || 
+                    currentExerciseData?.name.toLowerCase().includes("vélo") || 
+                    currentExerciseData?.name.toLowerCase().includes("corde");
+
     if (isTemplateMode) {
       setSessionData((prev) => {
         const updatedSets = prev[currentExerciseId].sets.map((set: any, index: number) =>
-          index === setIndex ? { ...set, weight, reps, completed: true } : set
+          index === setIndex ? {
+            ...set,
+            ...(isCardio
+              ? { distance_km: weight, duration_seconds: reps, completed: true }
+              : { weight, reps, completed: true }
+            )
+          } : set
         );
         
         const allSetsCompleted = updatedSets.every((set: any) => set.completed);
@@ -280,7 +290,19 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
         };
       });
     } else if (currentWorkoutExercise) {
-      updateSet(currentWorkoutExercise.id, setIndex, { weight, reps });
+      if (isCardio) {
+        updateSet(currentWorkoutExercise.id, setIndex, {
+          distance_km: weight,
+          duration_seconds: reps,
+          completed: true
+        });
+      } else {
+        updateSet(currentWorkoutExercise.id, setIndex, {
+          weight,
+          reps,
+          completed: true
+        });
+      }
       completeSet(currentWorkoutExercise.id, setIndex);
     }
 
@@ -407,8 +429,40 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   };
 
   const handleAddSet = () => {
-    if (!currentWorkoutExercise?.id) return;
-    addSet(currentWorkoutExercise.id);
+    if (!currentExerciseId) return;
+
+    const isCardio = currentExerciseData?.name.toLowerCase().includes("course") || 
+                    currentExerciseData?.name.toLowerCase().includes("vélo") || 
+                    currentExerciseData?.name.toLowerCase().includes("corde");
+
+    if (isTemplateMode) {
+      setSessionData((prev) => {
+        const lastSet = prev[currentExerciseId].sets[prev[currentExerciseId].sets.length - 1];
+        const newSet = {
+          ...(isCardio
+            ? {
+                duration_seconds: lastSet?.duration_seconds,
+                distance_km: lastSet?.distance_km,
+              }
+            : {
+                weight: lastSet?.weight,
+                reps: lastSet?.reps,
+              }
+          ),
+          completed: false,
+        };
+
+        return {
+          ...prev,
+          [currentExerciseId]: {
+            ...prev[currentExerciseId],
+            sets: [...prev[currentExerciseId].sets, newSet],
+          },
+        };
+      });
+    } else if (currentWorkoutExercise) {
+      addSet(currentWorkoutExercise.id);
+    }
   };
 
   const handleRemoveSet = (setIndex: number) => {

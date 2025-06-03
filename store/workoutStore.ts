@@ -695,6 +695,7 @@ const getMuscleGroupsFromExerciseId = (exerciseId: string): string[] => {
 };
 
 const isBodyweightExercise = (exerciseId: string): boolean => {
+  console.log({ exerciseId})
   const bodyweightExercises = [
     "push_ups",
     "pull_ups",

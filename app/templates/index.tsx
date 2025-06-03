@@ -7,12 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
-  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTemplateStore } from "../../store/templateStore";
 import { WorkoutTemplate } from "../../types/templates";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface TemplateCardProps {
   template: WorkoutTemplate;
@@ -210,7 +210,6 @@ export default function TemplatesScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      {/* Filtres par catégorie - VERSION SIMPLIFIÉE */}
       <View style={styles.filtersContainer}>
         <ScrollView
           horizontal
@@ -272,7 +271,6 @@ export default function TemplatesScreen() {
         </ScrollView>
       </View>
 
-      {/* Liste des templates */}
       <FlatList
         data={filteredTemplates}
         renderItem={({ item }) => (
@@ -388,7 +386,7 @@ const styles = StyleSheet.create({
   // Templates
   templatesList: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingVertical: 10,
   },
   templateCard: {
     backgroundColor: "white",

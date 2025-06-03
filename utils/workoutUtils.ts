@@ -116,6 +116,3 @@ export const formatReps = (reps: number | string) => {
 export const isSetReady = (set: Set) => {
   return (set.weight || 0) >= 0 && (set.reps || 0) > 0;
 };
-
-// Réexporter isBodyweightExercise depuis exerciseUtils
-export const isBodyweightExercise = checkIsBodyweightExercise; 

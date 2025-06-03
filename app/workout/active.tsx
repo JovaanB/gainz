@@ -180,7 +180,7 @@ export default function WorkoutScreen() {
             }
             sets={exerciseData?.sets || []}
             isBodyweightExercise={bodyWeightExercise}
-            suggestedWeight={getSuggestedWeight(currentExerciseData?.id || "")}
+            suggestedWeight={getSuggestedWeight(currentExerciseData)}
             onSetCompleted={handleSetCompleted}
             onSetDataChange={updateSetData}
             onRemoveSet={handleRemoveSet}

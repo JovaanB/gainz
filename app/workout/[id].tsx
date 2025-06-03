@@ -172,7 +172,7 @@ export default function WorkoutDetailScreen() {
     return bestSet;
   };
 
-  const formatCardioSet = (set: any) => {
+  const formatCardioSet = (set: any, exerciseName: string) => {
     const parts = [];
 
     if (set.duration_seconds) {
@@ -181,23 +181,44 @@ export default function WorkoutDetailScreen() {
       parts.push(`${minutes}:${seconds.toString().padStart(2, "0")}`);
     }
 
-    if (set.distance_km) {
-      parts.push(`${set.distance_km}km`);
-    }
-
-    if (set.duration_seconds && set.distance_km) {
-      const speed = set.distance_km / (set.duration_seconds / 3600);
-      parts.push(`(${speed.toFixed(1)}km/h)`);
+    // Gestion spécifique selon le type d'exercice
+    if (
+      exerciseName.toLowerCase().includes("course") ||
+      exerciseName.toLowerCase().includes("vélo")
+    ) {
+      if (set.distance_km) {
+        parts.push(`${set.distance_km}km`);
+      }
+      if (set.duration_seconds && set.distance_km) {
+        const speed = set.distance_km / (set.duration_seconds / 3600);
+        parts.push(`(${speed.toFixed(1)}km/h)`);
+      }
+    } else if (exerciseName.toLowerCase().includes("corde")) {
+      // Pour la corde à sauter, on affiche seulement le temps
+      if (set.duration_seconds) {
+        const totalSeconds = set.duration_seconds;
+        if (totalSeconds >= 60) {
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+          parts.push(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+        } else {
+          parts.push(`${totalSeconds}s`);
+        }
+      }
     }
 
     return parts.join(" • ");
   };
 
-  const formatBestSet = (bestSet: any, isCardio: boolean) => {
+  const formatBestSet = (
+    bestSet: any,
+    isCardio: boolean,
+    exerciseName: string
+  ) => {
     if (!bestSet) return "Aucune donnée";
 
     if (isCardio) {
-      return formatCardioSet(bestSet);
+      return formatCardioSet(bestSet, exerciseName);
     } else {
       // Musculation (code existant)
       if (bestSet.weight) {
@@ -310,15 +331,15 @@ Généré avec Gainz 💪`;
           {/* Volume ou temps cardio selon le type d'entraînement */}
           {totalVolume > 0 ? (
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{totalVolume} kg</Text>
-              <Text style={styles.statLabel}>Volume</Text>
+              <Text style={styles.statNumber}>{totalVolume}</Text>
+              <Text style={styles.statLabel}>Volume (kg)</Text>
             </View>
           ) : getTotalCardioTime() > 0 ? (
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>
-                {Math.floor(getTotalCardioTime() / 60)}min
+                {Math.floor(getTotalCardioTime() / 60)}
               </Text>
-              <Text style={styles.statLabel}>Cardio</Text>
+              <Text style={styles.statLabel}>Cardio (min)</Text>
             </View>
           ) : (
             <View style={styles.statCard}>
@@ -331,9 +352,9 @@ Généré avec Gainz 💪`;
           {getTotalDistance() > 0 ? (
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>
-                {getTotalDistance().toFixed(1)}km
+                {getTotalDistance().toFixed(1)}
               </Text>
-              <Text style={styles.statLabel}>Distance</Text>
+              <Text style={styles.statLabel}>Distance (km)</Text>
             </View>
           ) : (
             <View style={styles.statCard}>
@@ -348,6 +369,7 @@ Généré avec Gainz 💪`;
           <Text style={styles.sectionTitle}>Exercices</Text>
 
           {workout.exercises.map((workoutExercise, index) => {
+            console.log({ workoutExercise });
             const completedSets = workoutExercise.sets.filter(
               (set) => set.completed
             );
@@ -384,7 +406,8 @@ Généré avec Gainz 💪`;
                       Meilleur:{" "}
                       {formatBestSet(
                         bestSet,
-                        workoutExercise.exercise.category === "cardio"
+                        workoutExercise.exercise.category === "cardio",
+                        workoutExercise.exercise.name
                       )}
                     </Text>
                   )}
@@ -395,6 +418,8 @@ Généré avec Gainz 💪`;
                   {workoutExercise.sets.map((set, setIndex) => {
                     const isCardio =
                       workoutExercise.exercise.category === "cardio";
+
+                    console.log({ set });
 
                     return (
                       <View
@@ -411,16 +436,21 @@ Généré avec Gainz 💪`;
                             <>
                               {isCardio ? (
                                 <Text style={styles.setValue}>
-                                  {formatCardioSet(set)}
+                                  {formatCardioSet(
+                                    set,
+                                    workoutExercise.exercise.name
+                                  )}
                                 </Text>
                               ) : (
                                 <>
                                   <Text style={styles.setValue}>
                                     {set.reps} reps
                                   </Text>
-                                  {set.weight && (
+                                  {set.weight !== undefined && (
                                     <Text style={styles.setWeight}>
-                                      {set.weight}kg
+                                      {set.weight === 0
+                                        ? "Poids du corps"
+                                        : `${set.weight}kg`}
                                     </Text>
                                   )}
                                 </>

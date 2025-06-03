@@ -1,19 +1,8 @@
-import { Workout, WorkoutHistory, Set } from '@/types';
+import { Workout, WorkoutHistory, Set, Exercise } from '@/types';
 
-export const isBodyweightExercise = (exerciseId: string): boolean => {
-  const bodyweightExercises = [
-    'pull-up',
-    'push-up',
-    'dip',
-    'chin-up',
-    'muscle-up',
-    'handstand-push-up',
-    'pistol-squat',
-    'l-sit',
-    'plank',
-    'hollow-hold',
-  ];
-  return bodyweightExercises.includes(exerciseId);
+export const isBodyweightExercise = (exercise: Exercise): boolean => {
+  console.log({ exercise})
+  return exercise.is_bodyweight || false;
 };
 
 export const getSuggestedWeight = (exerciseId: string): number => {

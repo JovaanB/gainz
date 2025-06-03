@@ -6,8 +6,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Développé couché",
     muscle_groups: ["Pectoraux", "Triceps", "Épaules"],
     category: "strength",
-    instructions:
+    notes:
       "Allongé sur le banc, descendre la barre jusqu'à la poitrine puis pousser.",
+      sets: 1,
     is_bodyweight: false,
   },
   {
@@ -15,6 +16,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Développé incliné",
     muscle_groups: ["Pectoraux", "Épaules"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -22,6 +24,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Pompes",
     muscle_groups: ["Pectoraux", "Triceps"],
     category: "strength",
+    sets: 1,
     is_bodyweight: true,
   },
   {
@@ -29,6 +32,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Tractions",
     muscle_groups: ["Dos", "Biceps"],
     category: "strength",
+    sets: 1,
     is_bodyweight: true,
   },
   {
@@ -36,6 +40,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Rowing barre",
     muscle_groups: ["Dos", "Biceps"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -43,6 +48,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Tirage vertical",
     muscle_groups: ["Dos", "Biceps"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -50,6 +56,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Squat",
     muscle_groups: ["Quadriceps", "Fessiers"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -57,6 +64,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Soulevé de terre",
     muscle_groups: ["Ischio-jambiers", "Fessiers", "Dos"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -64,6 +72,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Presse à cuisses",
     muscle_groups: ["Quadriceps", "Fessiers"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -71,6 +80,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Développé épaules",
     muscle_groups: ["Épaules", "Triceps"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -78,6 +88,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Élévations latérales",
     muscle_groups: ["Épaules"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   // Bras
@@ -86,6 +97,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Curl biceps",
     muscle_groups: ["Biceps"],
     category: "strength",
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -93,6 +105,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Dips triceps",
     muscle_groups: ["Triceps", "Pectoraux"],
     category: "strength",
+    sets: 1,
     is_bodyweight: true,
   },
   {
@@ -100,6 +113,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Tapis de course",
     muscle_groups: ["Cardio", "Jambes"],
     category: "cardio",
+    sets: 1,
     is_bodyweight: true,
   },
   {
@@ -107,6 +121,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Vélo",
     muscle_groups: ["Cardio", "Jambes"],
     category: "cardio",
+    sets: 1,
     is_bodyweight: true,
   },
   {
@@ -114,6 +129,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Rameur",
     muscle_groups: ["Cardio", "Dos", "Bras"],
     category: "cardio",
+    sets: 1,
     is_bodyweight: true,
   },
   {
@@ -121,6 +137,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Escaliers",
     muscle_groups: ["Cardio", "Jambes", "Fessiers"],
     category: "cardio",
+    sets: 1,
     is_bodyweight: true,
   },
   {
@@ -128,6 +145,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Elliptique",
     muscle_groups: ["Cardio", "Corps entier"],
     category: "cardio",
+    sets: 1,
     is_bodyweight: true,
   },
   {
@@ -135,6 +153,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     name: "Corde à sauter",
     muscle_groups: ["Cardio", "Mollets"],
     category: "cardio",
+    sets: 1,
     is_bodyweight: true,
   },
 ];

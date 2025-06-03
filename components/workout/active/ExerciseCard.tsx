@@ -27,7 +27,7 @@ interface ExerciseCardProps {
   onSetCompleted: (setIndex: number, weight: number, reps: number) => void;
   onSetDataChange: (
     setIndex: number,
-    field: "weight" | "reps",
+    field: "weight" | "reps" | "duration_seconds" | "distance_km",
     value: number
   ) => void;
   onRemoveSet?: (setIndex: number) => void;
@@ -50,8 +50,26 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   onAddSet,
   isTemplateMode = false,
 }) => {
+  const isCardio =
+    exerciseName.toLowerCase().includes("course") ||
+    exerciseName.toLowerCase().includes("vélo") ||
+    exerciseName.toLowerCase().includes("corde");
+
   const isSetReady = (set: Set) => {
+    if (isCardio) {
+      if (exerciseName.toLowerCase().includes("corde")) {
+        return (set.duration_seconds || 0) > 0;
+      } else {
+        return (set.duration_seconds || 0) > 0 && (set.distance_km || 0) > 0;
+      }
+    }
     return (set.weight || 0) >= 0 && (set.reps || 0) > 0;
+  };
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -60,7 +78,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         <View style={styles.info}>
           <Text style={styles.name}>{exerciseName}</Text>
           <Text style={styles.target}>
-            {targets.sets} séries × {targets.reps} reps
+            {targets.sets} séries {!isCardio && `× ${targets.reps} reps`}
           </Text>
           <Text style={styles.progress}>
             {completedSets}/{targets.sets} séries terminées
@@ -76,7 +94,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         </View>
       </View>
 
-      {suggestedWeight !== undefined && (
+      {suggestedWeight !== undefined && !isCardio && (
         <View style={styles.weightSuggestion}>
           <Ionicons name="trending-up" size={16} color="#34C759" />
           <Text style={styles.weightSuggestionText}>
@@ -102,42 +120,105 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             <Text style={styles.setNumber}>{setIndex + 1}</Text>
 
             <View style={styles.setInputs}>
-              {!isBodyweightExercise && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Poids (kg)</Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      set.completed && styles.inputCompleted,
-                    ]}
-                    value={set.weight?.toString() || ""}
-                    onChangeText={(text) => {
-                      const weight = text === "" ? undefined : parseFloat(text);
-                      onSetDataChange(setIndex, "weight", weight || 0);
-                    }}
-                    keyboardType="decimal-pad"
-                    placeholder="0"
-                    placeholderTextColor="#9CA3AF"
-                    editable={!set.completed}
-                  />
-                </View>
-              )}
+              {isCardio ? (
+                <>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Temps</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        set.completed && styles.inputCompleted,
+                      ]}
+                      value={
+                        set.duration_seconds
+                          ? formatDuration(set.duration_seconds)
+                          : ""
+                      }
+                      onChangeText={(text) => {
+                        const [minutes, seconds] = text.split(":").map(Number);
+                        const totalSeconds = minutes * 60 + (seconds || 0);
+                        onSetDataChange(
+                          setIndex,
+                          "duration_seconds",
+                          totalSeconds
+                        );
+                      }}
+                      placeholder="0:00"
+                      placeholderTextColor="#9CA3AF"
+                      editable={!set.completed}
+                    />
+                  </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Reps</Text>
-                <TextInput
-                  style={[styles.input, set.completed && styles.inputCompleted]}
-                  value={set.reps?.toString() || ""}
-                  onChangeText={(text) => {
-                    const reps = text === "" ? undefined : parseInt(text);
-                    onSetDataChange(setIndex, "reps", reps || 0);
-                  }}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor="#9CA3AF"
-                  editable={!set.completed}
-                />
-              </View>
+                  {!exerciseName.toLowerCase().includes("corde") && (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Distance (km)</Text>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          set.completed && styles.inputCompleted,
+                        ]}
+                        value={set.distance_km?.toString() || ""}
+                        onChangeText={(text) => {
+                          const distance =
+                            text === "" ? undefined : parseFloat(text);
+                          onSetDataChange(
+                            setIndex,
+                            "distance_km",
+                            distance || 0
+                          );
+                        }}
+                        keyboardType="decimal-pad"
+                        placeholder="0.0"
+                        placeholderTextColor="#9CA3AF"
+                        editable={!set.completed}
+                      />
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  {!isBodyweightExercise && (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Poids (kg)</Text>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          set.completed && styles.inputCompleted,
+                        ]}
+                        value={set.weight?.toString() || ""}
+                        onChangeText={(text) => {
+                          const weight =
+                            text === "" ? undefined : parseFloat(text);
+                          onSetDataChange(setIndex, "weight", weight || 0);
+                        }}
+                        keyboardType="decimal-pad"
+                        placeholder="0"
+                        placeholderTextColor="#9CA3AF"
+                        editable={!set.completed}
+                      />
+                    </View>
+                  )}
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Reps</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        set.completed && styles.inputCompleted,
+                      ]}
+                      value={set.reps?.toString() || ""}
+                      onChangeText={(text) => {
+                        const reps = text === "" ? undefined : parseInt(text);
+                        onSetDataChange(setIndex, "reps", reps || 0);
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                      editable={!set.completed}
+                    />
+                  </View>
+                </>
+              )}
             </View>
 
             <TouchableOpacity
@@ -146,9 +227,17 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 set.completed && styles.completeSetButtonCompleted,
                 !isSetReady(set) && styles.completeSetButtonDisabled,
               ]}
-              onPress={() =>
-                onSetCompleted(setIndex, set.weight || 0, set.reps || 0)
-              }
+              onPress={() => {
+                if (isCardio) {
+                  onSetCompleted(
+                    setIndex,
+                    set.distance_km || 0,
+                    set.duration_seconds || 0
+                  );
+                } else {
+                  onSetCompleted(setIndex, set.weight || 0, set.reps || 0);
+                }
+              }}
               disabled={!isSetReady(set) || set.completed}
             >
               <Ionicons

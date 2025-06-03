@@ -1,4 +1,4 @@
-import { Workout, Exercise, WorkoutSet } from "@/types";
+import { Workout } from "@/types";
 
 export interface PersonalRecord {
   exerciseId: string;

@@ -60,7 +60,7 @@ export default function HistoryScreen() {
 
     return {
       workoutCount: thisWeekWorkouts.length,
-      totalTime: Math.floor(totalTime / 1000 / 60), // en minutes
+      totalTime: Math.floor(totalTime / 1000 / 60 / 60),
       totalVolume: Math.round(totalVolume / 1000), // en tonnes
       avgDuration:
         thisWeekWorkouts.length > 0
@@ -221,20 +221,18 @@ export default function HistoryScreen() {
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{weeklyStats.totalTime} min</Text>
-              <Text style={styles.statLabel}>Temps total</Text>
+              <Text style={styles.statNumber}>{weeklyStats.totalTime}</Text>
+              <Text style={styles.statLabel}>Temps total (h)</Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{weeklyStats.totalVolume}t</Text>
-              <Text style={styles.statLabel}>Volume</Text>
+              <Text style={styles.statNumber}>{weeklyStats.totalVolume}</Text>
+              <Text style={styles.statLabel}>Volume (t)</Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {weeklyStats.avgDuration} min
-              </Text>
-              <Text style={styles.statLabel}>Durée moy.</Text>
+              <Text style={styles.statNumber}>{weeklyStats.avgDuration}</Text>
+              <Text style={styles.statLabel}>Durée moy. (min)</Text>
             </View>
           </View>
         </View>

@@ -261,6 +261,7 @@ export const POPULAR_TEMPLATES: WorkoutTemplate[] = [
         exercises: [
           {
             exercise_id: "push_ups",
+            is_bodyweight: true,
             sets: 3,
             reps: "8-15",
             rest_seconds: 60,

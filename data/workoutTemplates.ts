@@ -1,4 +1,3 @@
-import { Exercise } from "@/types";
 
 export interface WorkoutTemplate {
   id: string;
