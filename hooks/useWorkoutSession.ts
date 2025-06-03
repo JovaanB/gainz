@@ -10,6 +10,7 @@ import {
   formatReps,
 } from '@/utils/workoutUtils';
 import { isBodyweightExercise } from '@/utils/exerciseUtils';
+import { getExerciseById } from '@/data/templates';
 
 interface UnifiedExercise {
   id: string;
@@ -69,7 +70,6 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
 
   // Vérification de l'état initial
   useEffect(() => {
-    // Réinitialiser l'état des nouveaux PRs au chargement de la session pour éviter l'affichage persistant.
     markPRsSeen();
 
     if (isTemplateMode) {
@@ -80,6 +80,19 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
         router.replace("/");
         return;
       }
+
+      const exercisesData = currentSession.exercises.map((ex) => {
+        const exercise = getExerciseById(ex.exercise_id);
+
+        console.log({ exercise})
+
+        return {
+          ...exercise,
+          ...ex
+        }
+      });
+
+      currentSession.exercises = exercisesData;
 
       // Vérifier si la séance est déjà initialisée
       if (!currentWorkout) {

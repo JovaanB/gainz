@@ -22,6 +22,7 @@ interface ExerciseCardProps {
   };
   completedSets: number;
   sets: Set[];
+  isCardio: boolean;
   isBodyweightExercise: boolean;
   suggestedWeight?: number;
   onSetCompleted: (setIndex: number, weight: number, reps: number) => void;
@@ -43,6 +44,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   completedSets,
   sets,
   isBodyweightExercise,
+  isCardio,
   suggestedWeight,
   onSetCompleted,
   onSetDataChange,
@@ -50,11 +52,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   onAddSet,
   isTemplateMode = false,
 }) => {
-  const isCardio =
-    exerciseName.toLowerCase().includes("course") ||
-    exerciseName.toLowerCase().includes("vélo") ||
-    exerciseName.toLowerCase().includes("corde");
-
   const isSetReady = (set: Set) => {
     if (isCardio) {
       if (exerciseName.toLowerCase().includes("corde")) {
@@ -303,7 +300,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1C1C1E",
     marginBottom: 4,
-    textTransform: "capitalize",
   },
   target: {
     fontSize: 14,

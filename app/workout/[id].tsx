@@ -369,7 +369,6 @@ Généré avec Gainz 💪`;
           <Text style={styles.sectionTitle}>Exercices</Text>
 
           {workout.exercises.map((workoutExercise, index) => {
-            console.log({ workoutExercise });
             const completedSets = workoutExercise.sets.filter(
               (set) => set.completed
             );
@@ -418,8 +417,6 @@ Généré avec Gainz 💪`;
                   {workoutExercise.sets.map((set, setIndex) => {
                     const isCardio =
                       workoutExercise.exercise.category === "cardio";
-
-                    console.log({ set });
 
                     return (
                       <View

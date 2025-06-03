@@ -32,6 +32,8 @@ export interface TemplateExercise {
   reps: number | string;
   rest_seconds: number;
   notes?: string;
+  name?: string;
+  category?: string;
   is_bodyweight?: boolean;
   is_superset?: boolean;
   superset_group?: string;

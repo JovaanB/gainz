@@ -3,6 +3,7 @@ import { Workout, WorkoutExercise, Set, Exercise } from "@/types";
 import { TemplateExercise, ProgramProgress, TemplateSession } from "@/types/templates";
 import { StorageService } from "@/services/storage";
 import { useTemplateStore } from "@/store/templateStore";
+import { isBodyweightExercise } from "@/utils/exerciseUtils";
 
 interface ProgramSet {
   weight: number;
@@ -513,7 +514,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
                 name: ex.exerciseId.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
                 muscle_groups: muscleGroups,
                 category: "strength",
-                is_bodyweight: isBodyweightExercise(ex.exerciseId),
+                is_bodyweight: isBodyweightExercise(ex as unknown as Exercise),
                 sets: ex.sets.length,
               };
               return {
@@ -601,7 +602,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       id: `${templateExercise.exercise_id}_${Date.now()}_${index}`,
       exercise: {
         id: templateExercise.exercise_id,
-        name: templateExercise.exercise_id.replace("_", " "),
+        name: templateExercise.name || "",
         muscle_groups: [],
         category: "strength" as const,
         is_bodyweight: false,
@@ -692,22 +693,4 @@ const getMuscleGroupsFromExerciseId = (exerciseId: string): string[] => {
     return ["legs", "glutes"];
   }
   return ["full_body"]; // Valeur par défaut
-};
-
-const isBodyweightExercise = (exerciseId: string): boolean => {
-  console.log({ exerciseId})
-  const bodyweightExercises = [
-    "push_ups",
-    "pull_ups",
-    "bodyweight_squats",
-    "lunges",
-    "plank",
-    "burpees",
-    "pike_push_ups",
-    "tricep_dips",
-  ];
-
-  return bodyweightExercises.some((bwExercise) =>
-    exerciseId.includes(bwExercise)
-  );
 };

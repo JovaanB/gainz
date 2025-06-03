@@ -13,6 +13,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useTemplateStore } from "../../store/templateStore";
 import { WorkoutTemplate } from "../../types/templates";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { normalizeExercise } from "@/utils/workoutUtils";
+import { getExercisesForSession } from "@/data/templates";
 
 export default function TemplateDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -46,6 +48,9 @@ export default function TemplateDetailScreen() {
 
   const isFavorite = favoriteTemplates.includes(template.id);
   const selectedSession = template.sessions[selectedSessionIndex];
+  const selectedSessionExercices = getExercisesForSession(selectedSession);
+
+  console.log({ selectedSessionExercices });
 
   const handleFavoriteToggle = () => {
     if (isFavorite) {
@@ -273,39 +278,43 @@ export default function TemplateDetailScreen() {
 
             {/* Liste des exercices */}
             <View style={styles.exercisesList}>
-              {selectedSession.exercises.map((exercise, index) => (
-                <View
-                  key={`${exercise.exercise_id}_${index}`}
-                  style={styles.exerciseItem}
-                >
-                  <View style={styles.exerciseNumber}>
-                    <Text style={styles.exerciseNumberText}>{index + 1}</Text>
-                  </View>
+              {selectedSessionExercices.map((exercise, index) => {
+                const exerciseData = exercise;
 
-                  <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseName}>
-                      {exercise.exercise_id.replace("_", " ")}
-                    </Text>
-                    <Text style={styles.exerciseDetails}>
-                      {exercise.sets} séries × {formatReps(exercise.reps)} reps
-                    </Text>
-                    <Text style={styles.exerciseRest}>
-                      Repos: {Math.floor(exercise.rest_seconds / 60)}:
-                      {(exercise.rest_seconds % 60).toString().padStart(2, "0")}
-                    </Text>
-                    {exercise.notes && (
-                      <Text style={styles.exerciseNotes}>
-                        💡 {exercise.notes}
+                return (
+                  <View
+                    key={`${exerciseData.exercise_id}_${index}`}
+                    style={styles.exerciseItem}
+                  >
+                    <View style={styles.exerciseNumber}>
+                      <Text style={styles.exerciseNumberText}>{index + 1}</Text>
+                    </View>
+
+                    <View style={styles.exerciseInfo}>
+                      <Text style={styles.exerciseName}>
+                        {exerciseData.exercise_details?.name}
                       </Text>
-                    )}
-                    {exercise.progression_notes && (
-                      <Text style={styles.exerciseProgression}>
-                        📈 {exercise.progression_notes}
+                      <Text style={styles.exerciseDetails}>
+                        {exerciseData.sets} séries ×{" "}
+                        {formatReps(exerciseData.reps || 0)} reps
                       </Text>
-                    )}
+                      <Text style={styles.exerciseRest}>
+                        Repos: {Math.floor(exerciseData.rest_seconds)}s
+                      </Text>
+                      {exerciseData.notes && (
+                        <Text style={styles.exerciseNotes}>
+                          💡 {exerciseData.notes}
+                        </Text>
+                      )}
+                      {exerciseData.progression_notes && (
+                        <Text style={styles.exerciseProgression}>
+                          📈 {exerciseData.progression_notes}
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         )}
@@ -623,7 +632,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1C1C1E",
     marginBottom: 2,
-    textTransform: "capitalize",
   },
   exerciseDetails: {
     fontSize: 12,

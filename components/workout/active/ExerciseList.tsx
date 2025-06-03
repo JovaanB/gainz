@@ -129,7 +129,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#1C1C1E",
-    textTransform: "capitalize",
   },
   exerciseItemSets: {
     fontSize: 12,

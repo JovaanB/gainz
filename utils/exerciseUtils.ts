@@ -1,7 +1,6 @@
 import { Workout, WorkoutHistory, Set, Exercise } from '@/types';
 
 export const isBodyweightExercise = (exercise: Exercise): boolean => {
-  console.log({ exercise})
   return exercise.is_bodyweight || false;
 };
 

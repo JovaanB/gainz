@@ -1,5 +1,7 @@
 // src/data/templates.ts
 import { WorkoutTemplate } from "../types/templates";
+import { DEFAULT_EXERCISES } from "./exercises";
+import { Exercise } from "@/types";
 
 export const POPULAR_TEMPLATES: WorkoutTemplate[] = [
   {
@@ -198,7 +200,7 @@ export const POPULAR_TEMPLATES: WorkoutTemplate[] = [
             progression_notes: "+2.5kg chaque session réussie",
           },
           {
-            exercise_id: "barbell_row",
+            exercise_id: "barbell_rows",
             sets: 5,
             reps: "5",
             rest_seconds: 180,
@@ -330,4 +332,17 @@ export const getFavoriteTemplates = (favoriteIds: string[]) => {
   return POPULAR_TEMPLATES.filter((template) =>
     favoriteIds.includes(template.id)
   );
+};
+
+// Fonction utilitaire pour récupérer les exercices correspondants aux exercise_id
+export const getExerciseById = (exerciseId: string): Exercise | undefined => {
+  return DEFAULT_EXERCISES.find((exercise) => exercise.id == exerciseId);
+};
+
+// Fonction pour récupérer tous les exercices d'une session
+export const getExercisesForSession = (session: WorkoutTemplate['sessions'][0]) => {
+  return session.exercises.map(exercise => ({
+    ...exercise,
+    exercise_details: getExerciseById(exercise.exercise_id)
+  }));
 };
