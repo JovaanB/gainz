@@ -50,8 +50,6 @@ export default function TemplateDetailScreen() {
   const selectedSession = template.sessions[selectedSessionIndex];
   const selectedSessionExercices = getExercisesForSession(selectedSession);
 
-  console.log({ selectedSessionExercices });
-
   const handleFavoriteToggle = () => {
     if (isFavorite) {
       removeFromFavorites(template.id);

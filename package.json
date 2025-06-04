@@ -16,8 +16,9 @@
     "@expo/vector-icons": "^14.0.0",
     "@hookform/resolvers": "^5.0.1",
     "@react-native-async-storage/async-storage": "1.21.0",
+    "@react-native-community/netinfo": "^11.4.1",
     "@react-navigation/native": "^6.0.2",
-    "@supabase/supabase-js": "^2.49.8",
+    "@supabase/supabase-js": "^2.49.9",
     "expo": "~50.0.17",
     "expo-constants": "~15.4.6",
     "expo-font": "~11.10.3",
@@ -37,7 +38,8 @@
     "react-native-screens": "~3.29.0",
     "react-native-web": "~0.19.6",
     "yup": "^1.6.1",
-    "zustand": "^5.0.5"
+    "zustand": "^5.0.5",
+    "expo-linear-gradient": "~12.7.2"
   },
   "devDependencies": {
     "@babel/core": "^7.27.4",

@@ -8,7 +8,7 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     notes:
       "Allongé sur le banc, descendre la barre jusqu'à la poitrine puis pousser.",
-      sets: 1,
+    sets: 1,
     is_bodyweight: false,
   },
   {
@@ -127,14 +127,6 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     id: "lateral_raises",
     name: "Élévations latérales",
     muscle_groups: ["Épaules"],
-    category: "strength",
-    sets: 1,
-    is_bodyweight: false,
-  },
-  {
-    id: "incline_dumbbell_press",
-    name: "Développé incliné haltères",
-    muscle_groups: ["Pectoraux", "Épaules"],
     category: "strength",
     sets: 1,
     is_bodyweight: false,

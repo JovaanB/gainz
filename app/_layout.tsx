@@ -6,8 +6,11 @@ import { Toast } from "@/components/ui/Toast";
 import { useWorkoutStore } from "@/store/workoutStore";
 import { useExerciseStore } from "@/store/exerciseStore";
 import { useToastStore } from "@/store/toastStore";
+import { useAuthStore } from "@/store/authStore";
 import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { WelcomeFlow } from "@/components/auth/WelcomeFlow";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -16,6 +19,7 @@ export default function RootLayout() {
   const { loadWorkoutHistory } = useWorkoutStore();
   const { loadExercises } = useExerciseStore();
   const { visible, message, type, hideToast } = useToastStore();
+  const { isLoading, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     async function prepare() {
@@ -33,18 +37,22 @@ export default function RootLayout() {
     prepare();
   }, []);
 
-  if (!isReady) {
+  if (!isReady || isLoading) {
     return <LoadingScreen />;
   }
 
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="workout" />
-        <Stack.Screen name="templates/index" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      <AuthGuard>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="auth" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="workout" />
+          <Stack.Screen name="templates/index" />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <WelcomeFlow />
+      </AuthGuard>
       <StatusBar style="auto" />
 
       <Toast

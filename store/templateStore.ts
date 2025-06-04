@@ -11,6 +11,7 @@ import {
 import { Workout, Set } from "@/types";
 import { POPULAR_TEMPLATES } from "@/data/templates";
 import { StorageService } from "@/services/storage";
+import { generateUUID } from "@/utils/uuid";
 
 interface ProgramSet extends Set {
   weight: number;
@@ -74,7 +75,7 @@ export const useTemplateStore = create<TemplateState>()(
           // Charger les données depuis AsyncStorage
           const savedData = await StorageService.getUserSettings();
           const templateData = savedData?.[STORAGE_KEY];
-          
+
           if (templateData) {
             set({
               currentProgram: templateData.currentProgram,
@@ -123,7 +124,7 @@ export const useTemplateStore = create<TemplateState>()(
 
           // Sauvegarder dans AsyncStorage
           try {
-            const savedData = await StorageService.getUserSettings() || {};
+            const savedData = (await StorageService.getUserSettings()) || {};
             await StorageService.saveUserSettings({
               ...savedData,
               [STORAGE_KEY]: {
@@ -170,7 +171,8 @@ export const useTemplateStore = create<TemplateState>()(
 
         if (currentProgram && selectedTemplate) {
           const sessionId = `${currentProgram.templateId}_${currentProgram.currentSession}`;
-          const sessionIndex = currentProgram.currentSession % selectedTemplate.sessions.length;
+          const sessionIndex =
+            currentProgram.currentSession % selectedTemplate.sessions.length;
           const templateSession = selectedTemplate.sessions[sessionIndex];
 
           if (!templateSession) {
@@ -183,7 +185,7 @@ export const useTemplateStore = create<TemplateState>()(
 
           // Créer un workout à partir de la session
           const workout: Workout = {
-            id: `template_${sessionId}`,
+            id: generateUUID(),
             name: templateSession.name,
             date: sessionData.date,
             started_at: sessionData.date,
@@ -192,7 +194,9 @@ export const useTemplateStore = create<TemplateState>()(
               id: ex.exerciseId,
               exercise: {
                 id: ex.exerciseId,
-                name: ex.exerciseId.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+                name: ex.exerciseId
+                  .replace(/_/g, " ")
+                  .replace(/\b\w/g, (l) => l.toUpperCase()),
                 muscle_groups: [],
                 category: "strength",
                 is_bodyweight: false,
@@ -234,7 +238,7 @@ export const useTemplateStore = create<TemplateState>()(
 
           // Sauvegarder dans AsyncStorage
           try {
-            const savedData = await StorageService.getUserSettings() || {};
+            const savedData = (await StorageService.getUserSettings()) || {};
             await StorageService.saveUserSettings({
               ...savedData,
               [STORAGE_KEY]: {

@@ -1,4 +1,3 @@
-
 export interface WorkoutTemplate {
   id: string;
   name: string;
@@ -14,7 +13,7 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
   {
     id: "push-day",
     name: "Push Day",
-    description: "Pectoraux, épaules et triceps",
+    description: "Pecs, épaules et triceps",
     exercises: [
       "bench-press",
       "incline-press",

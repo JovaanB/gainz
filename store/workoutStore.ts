@@ -1,9 +1,15 @@
 import { create } from "zustand";
 import { Workout, WorkoutExercise, Set, Exercise } from "@/types";
-import { TemplateExercise, ProgramProgress, TemplateSession } from "@/types/templates";
-import { StorageService } from "@/services/storage";
+import {
+  TemplateExercise,
+  ProgramProgress,
+  TemplateSession,
+} from "@/types/templates";
+import { hybridStorage } from "@/services/hybridStorage";
 import { useTemplateStore } from "@/store/templateStore";
 import { isBodyweightExercise } from "@/utils/exerciseUtils";
+import { useAuthStore } from "./authStore";
+import { generateUUID, isValidUUID } from "@/utils/uuid";
 
 interface ProgramSet {
   weight: number;
@@ -27,6 +33,12 @@ interface WorkoutStore {
   };
   workoutType: "free" | "template";
   templateSessionId?: string;
+  syncStatus: {
+    pending: number;
+    synced: number;
+    isOnline: boolean;
+    lastSync: number | null;
+  };
 
   startWorkout: (name: string, selectedExercises: Exercise[]) => void;
   finishWorkout: () => Promise<Workout>;
@@ -66,6 +78,8 @@ interface WorkoutStore {
   ) => void;
   saveAndFinalizeWorkout: () => Promise<Workout>;
   addWorkoutToHistory: (workout: Workout) => void;
+  getSyncStatus: () => Promise<void>;
+  forceSyncAll: () => Promise<void>;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
@@ -82,6 +96,12 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
   workoutType: "free",
   templateSessionId: undefined,
+  syncStatus: {
+    pending: 0,
+    synced: 0,
+    isOnline: true,
+    lastSync: null,
+  },
 
   startWorkout: (name: string, selectedExercises: Exercise[]) => {
     if (!selectedExercises || selectedExercises.length === 0) {
@@ -89,9 +109,12 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       return;
     }
 
+    const { user } = useAuthStore.getState();
+    const userId = user?.id || "temp-user";
+
     const workoutExercises: WorkoutExercise[] = selectedExercises.map(
       (exercise, index) => ({
-        id: `${exercise.id}_${Date.now()}_${index}`,
+        id: generateUUID(),
         exercise,
         sets: [
           {
@@ -110,13 +133,13 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     );
 
     const workout: Workout = {
-      id: `workout_${Date.now()}`,
+      id: generateUUID(),
       name,
       date: Date.now(),
       started_at: Date.now(),
       exercises: workoutExercises,
       completed: false,
-      user_id: "temp-user",
+      user_id: userId,
     };
 
     set({
@@ -130,7 +153,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     // Vérification après la mise à jour
     const { currentWorkout } = get();
     if (!currentWorkout) {
-      console.error("Erreur: currentWorkout n'a pas été correctement initialisé");
+      console.error(
+        "Erreur: currentWorkout n'a pas été correctement initialisé"
+      );
     }
   },
 
@@ -143,13 +168,16 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       const finishedWorkout = {
         ...currentWorkout,
         finished_at: Date.now(),
-        completed: true
+        completed: true,
       };
-      await StorageService.saveWorkout(finishedWorkout);
+      await hybridStorage.saveWorkout(finishedWorkout);
       const updatedHistory = [finishedWorkout, ...workoutHistory];
       set({
         workoutHistory: updatedHistory,
       });
+
+      get().getSyncStatus();
+
       return finishedWorkout;
     } catch (error) {
       console.error("Error saving and finalizing workout:", error);
@@ -158,11 +186,11 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   finishWorkout: async (): Promise<Workout> => {
-     // Cette fonction est principalement appelée par handleSessionCompleted
-     // Elle déclenchera la sauvegarde et la détection de PRs
-     const finalizedWorkout = await get().saveAndFinalizeWorkout();
-     return finalizedWorkout; // Retourner le workout finalisé
-     // Le nettoyage de l'état (currentWorkout = null) se fera plus tard via handleSessionFinalCleanup
+    // Cette fonction est principalement appelée par handleSessionCompleted
+    // Elle déclenchera la sauvegarde et la détection de PRs
+    const finalizedWorkout = await get().saveAndFinalizeWorkout();
+    return finalizedWorkout; // Retourner le workout finalisé
+    // Le nettoyage de l'état (currentWorkout = null) se fera plus tard via handleSessionFinalCleanup
   },
 
   cancelWorkout: () => {
@@ -192,11 +220,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     set({ currentWorkout: updatedWorkout });
   },
 
-  updateSet: (
-    exerciseId: string,
-    setIndex: number,
-    setData: Partial<Set>
-  ) => {
+  updateSet: (exerciseId: string, setIndex: number, setData: Partial<Set>) => {
     const { currentWorkout } = get();
     if (!currentWorkout) return;
 
@@ -357,7 +381,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
   goToExercise: (nextIndex: number) => {
     const { currentWorkout, workoutType } = get();
-    
+
     if (!currentWorkout) {
       return;
     }
@@ -484,58 +508,68 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   loadWorkoutHistory: async () => {
     try {
       set({ isLoading: true });
-      const freeWorkouts = await StorageService.getWorkouts();
-      
+      const freeWorkouts = await hybridStorage.getWorkouts();
+
       // Récupérer les séances de programme depuis le templateStore
       const { currentProgram, selectedTemplate } = useTemplateStore.getState();
       let programWorkouts: Workout[] = [];
 
       if (currentProgram && selectedTemplate) {
-        programWorkouts = currentProgram.progressHistory.map((session: ProgramProgress) => {
-          const templateSession = selectedTemplate.sessions.find(
-            (s: TemplateSession) => s.id === session.sessionId
-          );
+        programWorkouts = currentProgram.progressHistory
+          .map((session: ProgramProgress) => {
+            const templateSession = selectedTemplate.sessions.find(
+              (s: TemplateSession) => s.id === session.sessionId
+            );
 
-          if (!templateSession) {
-            console.warn(`Session template not found for sessionId: ${session.sessionId}`);
-            return null;
-          }
+            if (!templateSession) {
+              console.warn(
+                `Session template not found for sessionId: ${session.sessionId}`
+              );
+              return null;
+            }
 
-          return {
-            id: `template_${session.sessionId}`,
-            name: templateSession.name,
-            date: session.date,
-            started_at: session.date,
-            finished_at: session.date + (session.duration || 0) * 1000,
-            exercises: session.exercises.map((ex) => {
-              const muscleGroups = getMuscleGroupsFromExerciseId(ex.exerciseId);
-              const exercise: Exercise = {
-                id: ex.exerciseId,
-                name: ex.exerciseId.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
-                muscle_groups: muscleGroups,
-                category: "strength",
-                is_bodyweight: isBodyweightExercise(ex as unknown as Exercise),
-                sets: ex.sets.length,
-              };
-              return {
-                id: ex.exerciseId,
-                exercise,
-                sets: ex.sets.map((set: ProgramSet) => ({
-                  ...set,
-                  rest_seconds: set.rest_seconds || 90,
-                })),
-                completed: true,
-                order_index: 0,
-                notes: "",
-              };
-            }),
-            completed: true,
-            user_id: "temp-user",
-            is_template: true,
-            template_id: currentProgram.templateId,
-            template_session_id: session.sessionId,
-          };
-        }).filter((w): w is NonNullable<typeof w> => w !== null);
+            return {
+              id: generateUUID(),
+              name: templateSession.name,
+              date: session.date,
+              started_at: session.date,
+              finished_at: session.date + (session.duration || 0) * 1000,
+              exercises: session.exercises.map((ex) => {
+                const muscleGroups = getMuscleGroupsFromExerciseId(
+                  ex.exerciseId
+                );
+                const exercise: Exercise = {
+                  id: ex.exerciseId,
+                  name: ex.exerciseId
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase()),
+                  muscle_groups: muscleGroups,
+                  category: "strength",
+                  is_bodyweight: isBodyweightExercise(
+                    ex as unknown as Exercise
+                  ),
+                  sets: ex.sets.length,
+                };
+                return {
+                  id: ex.exerciseId,
+                  exercise,
+                  sets: ex.sets.map((set: ProgramSet) => ({
+                    ...set,
+                    rest_seconds: set.rest_seconds || 90,
+                  })),
+                  completed: true,
+                  order_index: 0,
+                  notes: "",
+                };
+              }),
+              completed: true,
+              user_id: "temp-user",
+              is_template: true,
+              template_id: currentProgram.templateId,
+              template_session_id: session.sessionId,
+            };
+          })
+          .filter((w): w is NonNullable<typeof w> => w !== null);
       }
 
       // Combiner les séances libres et les séances de programme
@@ -544,10 +578,11 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       );
 
       set({ workoutHistory: allWorkouts });
+
+      get().getSyncStatus();
     } catch (error) {
       console.error("Error loading workout history:", error);
-      const freeWorkouts = await StorageService.getWorkouts();
-
+      const freeWorkouts = await hybridStorage.getWorkouts();
       set({ workoutHistory: freeWorkouts });
     } finally {
       set({ isLoading: false });
@@ -556,11 +591,13 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
   deleteWorkout: async (workoutId: string) => {
     try {
-      await StorageService.deleteWorkout(workoutId);
+      await hybridStorage.deleteWorkout(workoutId);
       const updatedHistory = get().workoutHistory.filter(
         (w) => w.id !== workoutId
       );
       set({ workoutHistory: updatedHistory });
+
+      get().getSyncStatus();
     } catch (error) {
       console.error("Error deleting workout:", error);
       throw error;
@@ -568,11 +605,11 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   startTemplateWorkout: (sessionId, templateExercises) => {
-    
-    const convertedExercises = get().convertTemplateToWorkout(templateExercises);
+    const convertedExercises =
+      get().convertTemplateToWorkout(templateExercises);
 
     const workout = {
-      id: `${sessionId}_${Date.now()}`,
+      id: generateUUID(),
       name: `Session ${sessionId}`,
       date: Date.now(),
       started_at: Date.now(),
@@ -593,32 +630,48 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     // Vérification après la mise à jour
     const { currentWorkout } = get();
     if (!currentWorkout) {
-      console.error("Erreur: currentWorkout n'a pas été correctement initialisé");
+      console.error(
+        "Erreur: currentWorkout n'a pas été correctement initialisé"
+      );
     }
   },
 
-  convertTemplateToWorkout: (templateExercises: TemplateExercise[]): WorkoutExercise[] => {
-    return templateExercises.map((templateExercise, index) => ({
-      id: `${templateExercise.exercise_id}_${Date.now()}_${index}`,
-      exercise: {
-        id: templateExercise.exercise_id,
-        name: templateExercise.name || "",
-        muscle_groups: [],
-        category: "strength" as const,
-        is_bodyweight: false,
-        sets: templateExercise.sets,
-      },
-      sets: Array(templateExercise.sets).fill(null).map(() => ({
-        reps: undefined,
-        weight: undefined,
+  convertTemplateToWorkout: (
+    templateExercises: TemplateExercise[]
+  ): WorkoutExercise[] => {
+    return templateExercises.map((templateExercise, index) => {
+      const exerciseId = isValidUUID(templateExercise.exercise_id)
+        ? templateExercise.exercise_id
+        : generateUUID();
+
+      return {
+        id: generateUUID(),
+        exercise: {
+          id: exerciseId,
+          name:
+            templateExercise.name ||
+            templateExercise.exercise_id
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (l) => l.toUpperCase()),
+          muscle_groups: [],
+          category: "strength" as const,
+          is_bodyweight: templateExercise.is_bodyweight || false,
+          sets: templateExercise.sets,
+        },
+        sets: Array(templateExercise.sets)
+          .fill(null)
+          .map(() => ({
+            reps: undefined,
+            weight: undefined,
+            completed: false,
+            rest_seconds: templateExercise.rest_seconds,
+          })),
         completed: false,
-        rest_seconds: templateExercise.rest_seconds,
-      })),
-      completed: false,
-      order_index: index,
-      notes: templateExercise.notes || "",
-      template_data: templateExercise,
-    }));
+        order_index: index,
+        notes: templateExercise.notes || "",
+        template_data: templateExercise,
+      };
+    });
   },
 
   updateTemplateProgress: (exerciseId, setIndex, data) => {
@@ -643,9 +696,36 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   addWorkoutToHistory: (workout: Workout) => {
-    set(state => ({
+    set((state) => ({
       workoutHistory: [workout, ...state.workoutHistory],
     }));
+  },
+
+  getSyncStatus: async () => {
+    try {
+      const status = await hybridStorage.getSyncStatus();
+      set({
+        syncStatus: {
+          ...get().syncStatus,
+          pending: status.pending,
+          synced: status.synced,
+          lastSync: Date.now(),
+        },
+      });
+    } catch (error) {
+      console.error("Error getting sync status:", error);
+    }
+  },
+
+  forceSyncAll: async () => {
+    try {
+      await hybridStorage.forceSyncAll();
+      // Actualiser le statut après la sync
+      get().getSyncStatus();
+    } catch (error) {
+      console.error("Error forcing sync:", error);
+      throw error;
+    }
   },
 }));
 

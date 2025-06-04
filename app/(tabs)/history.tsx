@@ -14,6 +14,7 @@ import { useProgressStore } from "@/store/progressStore";
 import { ProgressChart } from "@/components/ui/ProgressChart";
 import { ExerciseProgress } from "@/components/workout/ExerciseProgress";
 import { PersonalRecord } from "@/utils/progressCalculations";
+import { SyncStatus } from "@/components/ui/SyncStatus";
 
 export default function HistoryScreen() {
   const router = useRouter();

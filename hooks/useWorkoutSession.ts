@@ -1,16 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
-import { router } from 'expo-router';
-import { useTemplateStore } from '@/store/templateStore';
-import { useWorkoutStore } from '@/store/workoutStore';
-import { useProgressStore } from '@/store/progressStore';
-import { Workout, Exercise,  } from '@/types';
-import {
-  normalizeExercise,
-  formatReps,
-} from '@/utils/workoutUtils';
-import { isBodyweightExercise } from '@/utils/exerciseUtils';
-import { getExerciseById } from '@/data/templates';
+import { useState, useEffect, useRef } from "react";
+import { Alert } from "react-native";
+import { router } from "expo-router";
+import { useTemplateStore } from "@/store/templateStore";
+import { useWorkoutStore } from "@/store/workoutStore";
+import { useProgressStore } from "@/store/progressStore";
+import { Workout, Exercise } from "@/types";
+import { normalizeExercise, formatReps } from "@/utils/workoutUtils";
+import { isBodyweightExercise } from "@/utils/exerciseUtils";
+import { getExerciseById } from "@/data/templates";
+import { generateUUID } from "@/utils/uuid";
 
 interface UnifiedExercise {
   id: string;
@@ -25,7 +23,7 @@ interface UnifiedExercise {
   is_bodyweight: boolean;
 }
 
-type WorkoutMode = 'template' | 'free';
+type WorkoutMode = "template" | "free";
 
 export const useWorkoutSession = (mode: WorkoutMode) => {
   const [sessionStartTime] = useState(Date.now());
@@ -35,7 +33,8 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   const timerRef = useRef<NodeJS.Timeout>();
 
   // Stores
-  const { selectedTemplate, getCurrentSession, completeSession } = useTemplateStore();
+  const { selectedTemplate, getCurrentSession, completeSession } =
+    useTemplateStore();
   const {
     currentWorkout,
     restTimer,
@@ -65,7 +64,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   } = useProgressStore();
 
   // Données selon le mode
-  const isTemplateMode = mode === 'template';
+  const isTemplateMode = mode === "template";
   const currentSession = isTemplateMode ? getCurrentSession() : null;
 
   // Vérification de l'état initial
@@ -74,7 +73,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
 
     if (isTemplateMode) {
       const currentSession = getCurrentSession();
-      
+
       if (!currentSession) {
         console.error("Aucune session template trouvée");
         router.replace("/");
@@ -84,12 +83,10 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
       const exercisesData = currentSession.exercises.map((ex) => {
         const exercise = getExerciseById(ex.exercise_id);
 
-        console.log({ exercise})
-
         return {
           ...exercise,
-          ...ex
-        }
+          ...ex,
+        };
       });
 
       currentSession.exercises = exercisesData;
@@ -119,7 +116,9 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   const currentExerciseId = currentExerciseData?.id;
 
   const currentWorkoutExercise = !isTemplateMode
-    ? currentWorkout?.exercises.find((ex) => ex.exercise.id === currentExerciseData?.id)
+    ? currentWorkout?.exercises.find(
+        (ex) => ex.exercise.id === currentExerciseData?.id
+      )
     : undefined;
 
   const exerciseData = isTemplateMode
@@ -127,8 +126,8 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     : currentWorkoutExercise;
 
   const sessionTitle = isTemplateMode
-    ? currentSession?.name || 'Session Template'
-    : currentWorkout?.name || 'Séance Libre';
+    ? currentSession?.name || "Session Template"
+    : currentWorkout?.name || "Séance Libre";
 
   const programTitle = isTemplateMode ? selectedTemplate?.name : undefined;
 
@@ -192,7 +191,8 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   const getSuggestedWeight = (exercise: Exercise): number => {
     if (isBodyweightExercise(exercise)) return 0;
 
-    const suggestionWeight = getProgressionSuggestion(exercise.id)?.currentBest.weight;
+    const suggestionWeight = getProgressionSuggestion(exercise.id)?.currentBest
+      .weight;
 
     const weightMap: { [key: string]: number } = {
       bench_press: 60,
@@ -212,7 +212,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     if (!currentExerciseData) {
       return {
         sets: 3,
-        reps: '8-12',
+        reps: "8-12",
         restSeconds: 90,
         notes: undefined,
         progressionNotes: undefined,
@@ -221,23 +221,28 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
 
     return {
       sets: currentExerciseData.sets,
-      reps: formatReps(currentExerciseData.reps || '8-12'),
+      reps: formatReps(currentExerciseData.reps || "8-12"),
       restSeconds: currentExerciseData.rest_seconds || 90,
       notes: currentExerciseData.notes,
       progressionNotes: currentExerciseData.progression_notes,
     };
   };
 
-  const bodyWeightExercise = currentExerciseData ?
-  isBodyweightExercise(currentExerciseData) :
-  currentWorkoutExercise?.exercise.is_bodyweight === true;
+  const bodyWeightExercise = currentExerciseData
+    ? isBodyweightExercise(currentExerciseData)
+    : currentWorkoutExercise?.exercise.is_bodyweight === true;
 
   const getSessionProgress = () => {
     if (isTemplateMode) {
-      const completedCount = Object.values(sessionData).filter((data: any) => data.completed).length;
-      return exercises.length > 0 ? (completedCount / exercises.length) * 100 : 0;
+      const completedCount = Object.values(sessionData).filter(
+        (data: any) => data.completed
+      ).length;
+      return exercises.length > 0
+        ? (completedCount / exercises.length) * 100
+        : 0;
     } else {
-      const completedCount = currentWorkout?.exercises?.filter(ex => ex.completed).length || 0;
+      const completedCount =
+        currentWorkout?.exercises?.filter((ex) => ex.completed).length || 0;
       const totalExercises = currentWorkout?.exercises?.length || 0;
       return totalExercises > 0 ? (completedCount / totalExercises) * 100 : 0;
     }
@@ -246,7 +251,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   // Handlers
   const updateSetData = (
     setIndex: number,
-    field: 'weight' | 'reps' | 'duration_seconds' | 'distance_km',
+    field: "weight" | "reps" | "duration_seconds" | "distance_km",
     value: number
   ) => {
     if (!currentExerciseId) return;
@@ -275,30 +280,37 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   ) => {
     if (!currentExerciseId) return;
 
-    const isCardio = currentExerciseData?.name.toLowerCase().includes("course") || 
-                    currentExerciseData?.name.toLowerCase().includes("vélo") || 
-                    currentExerciseData?.name.toLowerCase().includes("corde");
+    const isCardio =
+      currentExerciseData?.name.toLowerCase().includes("course") ||
+      currentExerciseData?.name.toLowerCase().includes("vélo") ||
+      currentExerciseData?.name.toLowerCase().includes("corde");
 
     if (isTemplateMode) {
       setSessionData((prev) => {
-        const updatedSets = prev[currentExerciseId].sets.map((set: any, index: number) =>
-          index === setIndex ? {
-            ...set,
-            ...(isCardio
-              ? { distance_km: weight, duration_seconds: reps, completed: true }
-              : { weight, reps, completed: true }
-            )
-          } : set
+        const updatedSets = prev[currentExerciseId].sets.map(
+          (set: any, index: number) =>
+            index === setIndex
+              ? {
+                  ...set,
+                  ...(isCardio
+                    ? {
+                        distance_km: weight,
+                        duration_seconds: reps,
+                        completed: true,
+                      }
+                    : { weight, reps, completed: true }),
+                }
+              : set
         );
-        
+
         const allSetsCompleted = updatedSets.every((set: any) => set.completed);
-        
+
         return {
           ...prev,
           [currentExerciseId]: {
             ...prev[currentExerciseId],
             sets: updatedSets,
-            completed: allSetsCompleted
+            completed: allSetsCompleted,
           },
         };
       });
@@ -307,13 +319,13 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
         updateSet(currentWorkoutExercise.id, setIndex, {
           distance_km: weight,
           duration_seconds: reps,
-          completed: true
+          completed: true,
         });
       } else {
         updateSet(currentWorkoutExercise.id, setIndex, {
           weight,
           reps,
-          completed: true
+          completed: true,
         });
       }
       completeSet(currentWorkoutExercise.id, setIndex);
@@ -344,7 +356,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
         goToNextExercise();
       }
 
-     startRestTimer(60);
+      startRestTimer(60);
     } else {
       handleSessionCompleted();
     }
@@ -353,7 +365,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   const handleSessionFinalCleanup = () => {
     markPRsSeen();
 
-    useWorkoutStore.getState().cancelWorkout(); 
+    useWorkoutStore.getState().cancelWorkout();
 
     router.replace("/(tabs)");
   };
@@ -361,14 +373,13 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   const handleSessionCompleted = async () => {
     try {
       let completedWorkoutData: Workout | null = null;
-      let workoutIdForRedirect: string | undefined;
       let detectedNewPRs: any[] = [];
 
       // Étape 1: Préparer les données de l'objet completedWorkout et déclencher la sauvegarde
       if (isTemplateMode) {
         // Créer l'objet workout pour la sauvegarde et la détection de PRs
         const workoutToSave: Workout = {
-          id: `template_${Date.now()}`,
+          id: generateUUID(),
           name: sessionTitle,
           date: Date.now(),
           started_at: sessionStartTime,
@@ -376,26 +387,28 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
           exercises: exercises.map((exercise) => ({
             id: `${exercise.id}_${Date.now()}`,
             exercise: exercise,
-            sets: sessionData[exercise.id]?.sets.map((set: any) => ({
-              weight: set.weight,
-              reps: set.reps,
-              completed: set.completed,
-              rest_seconds: exercise.rest_seconds
-            })) || [],
+            sets:
+              sessionData[exercise.id]?.sets.map((set: any) => ({
+                weight: set.weight,
+                reps: set.reps,
+                completed: set.completed,
+                rest_seconds: exercise.rest_seconds,
+              })) || [],
             completed: sessionData[exercise.id]?.completed || false,
             order_index: exercises.indexOf(exercise),
             notes: exercise.notes || "",
-            template_data: currentSession?.exercises.find(e => e.exercise_id === exercise.id)
+            template_data: currentSession?.exercises.find(
+              (e) => e.exercise_id === exercise.id
+            ),
           })),
           completed: true,
-          user_id: "current_user"
+          user_id: "current_user",
         };
-        
+
         addWorkoutToHistory(workoutToSave);
 
         completedWorkoutData = workoutToSave;
-        workoutIdForRedirect = completedWorkoutData.id;
-        
+
         if (currentSession) {
           const progressData = {
             sessionId: currentSession.id,
@@ -410,25 +423,28 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
           };
           await completeSession(progressData);
         }
-
       } else {
-        completedWorkoutData = await useWorkoutStore.getState().saveAndFinalizeWorkout();
-        workoutIdForRedirect = completedWorkoutData?.id;
+        completedWorkoutData = await useWorkoutStore
+          .getState()
+          .saveAndFinalizeWorkout();
       }
 
       if (completedWorkoutData) {
-         const { workoutHistory: globalWorkoutHistory } = useWorkoutStore.getState();
-         const previousWorkouts = globalWorkoutHistory.filter(wh => wh.id !== completedWorkoutData?.id);
-         detectedNewPRs = detectNewPRs(completedWorkoutData, previousWorkouts);
+        const { workoutHistory: globalWorkoutHistory } =
+          useWorkoutStore.getState();
+        const previousWorkouts = globalWorkoutHistory.filter(
+          (wh) => wh.id !== completedWorkoutData?.id
+        );
+        detectedNewPRs = detectNewPRs(completedWorkoutData, previousWorkouts);
       }
-      
+
       useProgressStore.setState({ newPRs: detectedNewPRs });
 
       if (detectedNewPRs.length === 0) {
-            router.replace(`/(tabs)/`);
-            useWorkoutStore.getState().cancelWorkout(); 
-            markPRsSeen(); 
-           handleSessionFinalCleanup();
+        router.replace(`/(tabs)/`);
+        useWorkoutStore.getState().cancelWorkout();
+        markPRsSeen();
+        handleSessionFinalCleanup();
       }
     } catch (error) {
       console.error("Erreur lors de la finalisation de la séance:", error);
@@ -436,21 +452,23 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
         "Erreur",
         "Une erreur est survenue lors de la finalisation de la séance. Veuillez réessayer."
       );
-       // En cas d'erreur, nettoyer l'état et rediriger vers l'accueil
-       handleSessionFinalCleanup(); 
+      // En cas d'erreur, nettoyer l'état et rediriger vers l'accueil
+      handleSessionFinalCleanup();
     }
   };
 
   const handleAddSet = () => {
     if (!currentExerciseId) return;
 
-    const isCardio = currentExerciseData?.name.toLowerCase().includes("course") || 
-                    currentExerciseData?.name.toLowerCase().includes("vélo") || 
-                    currentExerciseData?.name.toLowerCase().includes("corde");
+    const isCardio =
+      currentExerciseData?.name.toLowerCase().includes("course") ||
+      currentExerciseData?.name.toLowerCase().includes("vélo") ||
+      currentExerciseData?.name.toLowerCase().includes("corde");
 
     if (isTemplateMode) {
       setSessionData((prev) => {
-        const lastSet = prev[currentExerciseId].sets[prev[currentExerciseId].sets.length - 1];
+        const lastSet =
+          prev[currentExerciseId].sets[prev[currentExerciseId].sets.length - 1];
         const newSet = {
           ...(isCardio
             ? {
@@ -460,8 +478,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
             : {
                 weight: lastSet?.weight,
                 reps: lastSet?.reps,
-              }
-          ),
+              }),
           completed: false,
         };
 
@@ -507,27 +524,33 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   };
 
   const handleNextExercise = () => {
-    const isCurrentExerciseCompleted = isTemplateMode 
-      ? sessionData[currentExerciseId]?.completed 
+    const isCurrentExerciseCompleted = isTemplateMode
+      ? sessionData[currentExerciseId]?.completed
       : currentWorkoutExercise?.completed;
 
     if (effectiveExerciseIndex < exercises.length - 1) {
-       if (isCurrentExerciseCompleted || !isTemplateMode) {
+      if (isCurrentExerciseCompleted || !isTemplateMode) {
         if (isTemplateMode) {
           setTemplateExerciseIndex(effectiveExerciseIndex + 1);
         } else {
-           goToNextExercise();
+          goToNextExercise();
         }
-         startRestTimer(60);
-       } else {
-         Alert.alert("Exercice non terminé", "Veuillez compléter l'exercice actuel avant de passer au suivant.");
-       }
+        startRestTimer(60);
+      } else {
+        Alert.alert(
+          "Exercice non terminé",
+          "Veuillez compléter l'exercice actuel avant de passer au suivant."
+        );
+      }
     } else {
-       if (isCurrentExerciseCompleted || !isTemplateMode) {
-         handleSessionCompleted();
-       } else {
-          Alert.alert("Exercice non terminé", "Veuillez compléter le dernier exercice avant de terminer la séance.");
-       }
+      if (isCurrentExerciseCompleted || !isTemplateMode) {
+        handleSessionCompleted();
+      } else {
+        Alert.alert(
+          "Exercice non terminé",
+          "Veuillez compléter le dernier exercice avant de terminer la séance."
+        );
+      }
     }
   };
 
@@ -586,17 +609,20 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     removeSet,
     goToExercise: handleGoToExercise,
     markPRsSeen,
-    completedExercises: isTemplateMode 
+    completedExercises: isTemplateMode
       ? Object.fromEntries(
           Object.entries(sessionData).map(([id, data]) => [id, data.completed])
         )
       : Object.fromEntries(
           exercises.map((ex) => {
-            const workoutExercise = currentWorkout?.exercises.find(e => e.exercise.id === ex.id);
-            const allSetsCompleted = workoutExercise?.sets.every(set => set.completed) || false;
+            const workoutExercise = currentWorkout?.exercises.find(
+              (e) => e.exercise.id === ex.id
+            );
+            const allSetsCompleted =
+              workoutExercise?.sets.every((set) => set.completed) || false;
             return [ex.id, allSetsCompleted];
           })
         ),
     handleSessionFinalCleanup,
   };
-}; 
+};
