@@ -1,3 +1,4 @@
+// store/progressStore.ts
 import { create } from "zustand";
 import {
   PersonalRecord,

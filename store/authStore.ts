@@ -1,3 +1,4 @@
+// store/authStore.ts
 import { create } from "zustand";
 import { authService, User } from "@/services/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";

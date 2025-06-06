@@ -1,3 +1,4 @@
+// services/exerciseService.ts
 import { supabase } from "@/config/supabase";
 import { Exercise } from "@/types";
 import { generateUUID } from "@/utils/uuid";

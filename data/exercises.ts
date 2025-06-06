@@ -1,6 +1,7 @@
+import { ExerciseWithSource } from "@/services/exerciseService";
 import { Exercise } from "@/types";
 
-export const DEFAULT_EXERCISES: Exercise[] = [
+export const DEFAULT_EXERCISES: ExerciseWithSource[] = [
   {
     id: "bench_press",
     name: "Développé couché",
@@ -10,6 +11,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
       "Allongé sur le banc, descendre la barre jusqu'à la poitrine puis pousser.",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "incline_press",
@@ -18,6 +22,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "push_ups",
@@ -26,6 +33,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "pike_push_ups",
@@ -34,6 +44,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "lunges",
@@ -42,6 +55,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "plank",
@@ -50,6 +66,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "burpees",
@@ -58,6 +77,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "cardio",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "overhead_press",
@@ -66,6 +88,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "calf_raises",
@@ -74,6 +99,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "leg_curls",
@@ -82,6 +110,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "romanain_deadlift",
@@ -90,6 +121,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "hammer_curls",
@@ -98,6 +132,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "romanian_deadlift",
@@ -106,6 +143,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "barbell_curls",
@@ -114,6 +154,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "overhead_tricep_extension",
@@ -122,6 +165,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "lateral_raises",
@@ -130,6 +176,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "bodyweight_squats",
@@ -138,6 +187,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "pull_ups",
@@ -146,6 +198,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "barbell_rows",
@@ -154,6 +209,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "lat_pulldown",
@@ -162,6 +220,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "squat",
@@ -170,6 +231,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "deadlift",
@@ -178,6 +242,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "leg_press",
@@ -186,6 +253,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "shoulder_press",
@@ -194,6 +264,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "lateral_raise",
@@ -202,6 +275,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   // Bras
   {
@@ -211,6 +287,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "tricep_dips",
@@ -219,6 +298,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "treadmill",
@@ -227,6 +309,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "cardio",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "cycling",
@@ -235,6 +320,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "cardio",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "incline-dumbbell-press",
@@ -243,6 +331,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "strength",
     sets: 1,
     is_bodyweight: false,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "rowing_machine",
@@ -251,6 +342,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "cardio",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "stair_climber",
@@ -259,6 +353,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "cardio",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "elliptical",
@@ -267,6 +364,9 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "cardio",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
   {
     id: "jump_rope",
@@ -275,5 +375,8 @@ export const DEFAULT_EXERCISES: Exercise[] = [
     category: "cardio",
     sets: 1,
     is_bodyweight: true,
+    is_global: true,
+    visibility: "global" as const,
+    source_type: "Exercice de base",
   },
 ];

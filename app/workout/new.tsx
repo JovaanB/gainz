@@ -17,8 +17,10 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useWorkoutStore } from "@/store/workoutStore";
 import { useExerciseStore } from "@/store/exerciseStore";
-import { Exercise } from "@/types";
 import { WORKOUT_TEMPLATES, WorkoutTemplate } from "@/data/workoutTemplates";
+import { AddExerciseModal } from "@/components/exercises/AddExerciseModal";
+import { ExerciseWithSource } from "@/services/exerciseService";
+import { useAuthStore } from "@/store/authStore";
 
 type Step = "name" | "template" | "exercises";
 
@@ -30,8 +32,12 @@ export default function NewWorkoutScreen() {
   const [step, setStep] = useState<Step>("name");
   const [selectedTemplate, setSelectedTemplate] =
     useState<WorkoutTemplate | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const { startWorkout } = useWorkoutStore();
+
+  const { isAnonymous } = useAuthStore();
+
   const {
     exercises,
     selectedExercises,
@@ -116,7 +122,7 @@ export default function NewWorkoutScreen() {
     return uniqueGroups;
   };
 
-  const renderExerciseItem = ({ item }: { item: Exercise }) => {
+  const renderExerciseItem = ({ item }: { item: ExerciseWithSource }) => {
     const isSelected = selectedExercises.some((ex) => ex.id === item.id);
 
     return (
@@ -397,6 +403,28 @@ export default function NewWorkoutScreen() {
         />
       </View>
 
+      {isAnonymous ? (
+        <View style={styles.primaryButton}>
+          <Ionicons
+            name="information-circle"
+            size={20}
+            color="#FFFFFF"
+            style={styles.icon}
+          />
+          <Text style={styles.primaryButtonText}>
+            Connectez-vous pour ajouter des exercices
+          </Text>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => setShowAddModal(true)}
+        >
+          <Ionicons name="add" size={20} color="#FFFFFF" style={styles.icon} />
+          <Text style={styles.primaryButtonText}>Ajouter un exercice</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Selected Count */}
       {selectedExercises.length > 0 && (
         <View style={styles.selectedCount}>
@@ -428,6 +456,11 @@ export default function NewWorkoutScreen() {
           </Text>
         </TouchableOpacity>
       )}
+
+      <AddExerciseModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -456,6 +489,35 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
+  },
+  primaryButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    shadowColor: "#007AFF",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+    marginHorizontal: 20,
+    marginVertical: 8,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+
+  icon: {
+    marginRight: 0,
   },
   nameSection: {
     marginBottom: 32,

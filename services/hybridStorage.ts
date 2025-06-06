@@ -1,7 +1,7 @@
+// services/hybridStorage.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "../config/supabase";
-import { Exercise, Workout, WorkoutExercise } from "@/types";
-import { useAuthStore } from "@/store/authStore";
+import { Workout, WorkoutExercise } from "@/types";
 import NetInfo from "@react-native-community/netinfo";
 import { generateUUID, isValidUUID } from "@/utils/uuid";
 
