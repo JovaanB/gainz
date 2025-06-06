@@ -12,7 +12,7 @@ export const SyncStatus: React.FC<SyncStatusProps> = ({
   variant = "default",
 }) => {
   const { syncStatus, getSyncStatus, forceSyncAll } = useWorkoutStore();
-  const { user, isAnonymous } = useAuthStore();
+  const { isAnonymous } = useAuthStore();
 
   useEffect(() => {
     getSyncStatus();

@@ -15,6 +15,9 @@ interface SyncStatus {
 class HybridStorageService {
   private syncQueue: string[] = [];
   private isOnline = true;
+  private syncInProgress = false;
+  private maxRetries = 3;
+  private retryDelay = 2000;
 
   constructor() {
     this.initNetworkListener();
@@ -41,7 +44,7 @@ class HybridStorageService {
 
       // 2. Essayer de sync avec Supabase si online
       if (this.isOnline) {
-        await this.syncWorkoutToCloud(workout);
+        await this.syncWorkoutToCloudWithRetry(workout);
       } else {
         // Ajouter à la queue de sync
         await this.addToSyncQueue(workout.id);
@@ -341,26 +344,28 @@ class HybridStorageService {
   private mergeWorkouts(local: Workout[], cloud: Workout[]): Workout[] {
     const merged = new Map<string, Workout>();
 
-    // Ajouter les workouts locaux
     local.forEach((workout) => merged.set(workout.id, workout));
 
-    // Merger avec les workouts cloud (priorité au plus récent)
     cloud.forEach((cloudWorkout) => {
       const localWorkout = merged.get(cloudWorkout.id);
-      if (
-        !localWorkout ||
-        (cloudWorkout.finished_at &&
-          cloudWorkout.finished_at > (localWorkout.finished_at || 0))
-      ) {
+
+      if (!localWorkout) {
         merged.set(cloudWorkout.id, cloudWorkout);
-        // Sauvegarder en local pour le cache
         this.saveWorkoutLocal(cloudWorkout);
+      } else {
+        const cloudUpdated = new Date(cloudWorkout.finished_at || 0).getTime();
+        const localUpdated =
+          localWorkout.finished_at || localWorkout.started_at;
+
+        if (cloudUpdated > localUpdated) {
+          merged.set(cloudWorkout.id, cloudWorkout);
+          this.saveWorkoutLocal(cloudWorkout);
+        }
       }
     });
 
     return Array.from(merged.values()).sort((a, b) => b.date - a.date);
   }
-
   // === SYNC QUEUE MANAGEMENT ===
 
   private async addToSyncQueue(workoutId: string): Promise<void> {
@@ -371,31 +376,88 @@ class HybridStorageService {
   }
 
   private async processSyncQueue(): Promise<void> {
-    const queueData = await AsyncStorage.getItem("sync_queue");
-    if (queueData) {
-      this.syncQueue = JSON.parse(queueData);
+    if (this.syncInProgress) {
+      console.log("Sync already in progress, skipping");
+      return;
     }
 
-    while (this.syncQueue.length > 0 && this.isOnline) {
-      const workoutId = this.syncQueue[0];
-      try {
-        const workoutData = await AsyncStorage.getItem(`workout_${workoutId}`);
-        if (workoutData) {
-          const workout: Workout = JSON.parse(workoutData);
-          await this.syncWorkoutToCloud(workout);
-        }
+    this.syncInProgress = true;
 
-        // Supprimer de la queue après succès
-        this.syncQueue.shift();
-        await AsyncStorage.setItem(
-          "sync_queue",
-          JSON.stringify(this.syncQueue)
-        );
-      } catch (error) {
-        console.error(`Error syncing workout ${workoutId}:`, error);
-        // Arrêter le traitement en cas d'erreur pour éviter de boucler
-        break;
+    try {
+      const queueData = await AsyncStorage.getItem("sync_queue");
+      if (queueData) {
+        this.syncQueue = JSON.parse(queueData);
       }
+
+      // Traiter seulement 3 workouts à la fois pour éviter la surcharge
+      const batchSize = 3;
+      let successCount = 0;
+      let failureCount = 0;
+
+      while (
+        this.syncQueue.length > 0 &&
+        this.isOnline &&
+        successCount < batchSize
+      ) {
+        const workoutId = this.syncQueue[0];
+
+        try {
+          const workoutData = await AsyncStorage.getItem(
+            `workout_${workoutId}`
+          );
+          if (workoutData) {
+            const workout: Workout = JSON.parse(workoutData);
+            await this.syncWorkoutToCloudWithRetry(workout);
+            successCount++;
+          }
+
+          // Supprimer de la queue après succès
+          this.syncQueue.shift();
+          await AsyncStorage.setItem(
+            "sync_queue",
+            JSON.stringify(this.syncQueue)
+          );
+        } catch (error) {
+          console.error(`Error syncing workout ${workoutId}:`, error);
+          failureCount++;
+
+          // Déplacer le workout échoué à la fin de la queue
+          const failedWorkout = this.syncQueue.shift();
+          if (failedWorkout) {
+            this.syncQueue.push(failedWorkout);
+          }
+
+          // Arrêter après 3 échecs consécutifs
+          if (failureCount >= 3) {
+            console.log("Too many sync failures, stopping batch");
+            break;
+          }
+        }
+      }
+
+      console.log(
+        `Sync batch completed: ${successCount} synced, ${failureCount} failed`
+      );
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  private async syncWorkoutToCloudWithRetry(
+    workout: Workout,
+    retryCount = 0
+  ): Promise<void> {
+    try {
+      await this.syncWorkoutToCloud(workout);
+    } catch (error) {
+      if (retryCount < this.maxRetries) {
+        console.log(
+          `Retrying sync for workout ${workout.id}, attempt ${retryCount + 1}`
+        );
+        await new Promise((resolve) => setTimeout(resolve, this.retryDelay));
+        return this.syncWorkoutToCloudWithRetry(workout, retryCount + 1);
+      }
+      throw error;
     }
   }
 

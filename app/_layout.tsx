@@ -19,7 +19,7 @@ export default function RootLayout() {
   const { loadWorkoutHistory } = useWorkoutStore();
   const { loadExercises } = useExerciseStore();
   const { visible, message, type, hideToast } = useToastStore();
-  const { isLoading, isAuthenticated } = useAuthStore();
+  const { isLoading } = useAuthStore();
 
   useEffect(() => {
     async function prepare() {
