@@ -11,6 +11,7 @@ import { useTemplateStore } from "@/store/templateStore";
 import { isBodyweightExercise } from "@/utils/exerciseUtils";
 import { useAuthStore } from "./authStore";
 import { generateUUID, isValidUUID } from "@/utils/uuid";
+import { TemplateExerciseDetail } from "@/services/templateService";
 
 interface ProgramSet {
   weight: number;
@@ -227,8 +228,25 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
     const updatedExercises = currentWorkout.exercises.map((ex) => {
       if (ex.id === exerciseId) {
+        const isCardioEx = isCardio(ex.exercise);
+        const isJump = isJumpRope(ex.exercise);
         const updatedSets = [...ex.sets];
-        updatedSets[setIndex] = { ...updatedSets[setIndex], ...setData };
+        if (isCardioEx) {
+          updatedSets[setIndex] = isJump
+            ? {
+                ...updatedSets[setIndex],
+                ...setData,
+                duration_seconds: setData.duration_seconds,
+              }
+            : {
+                ...updatedSets[setIndex],
+                ...setData,
+                duration_seconds: setData.duration_seconds,
+                distance_km: setData.distance_km,
+              };
+        } else {
+          updatedSets[setIndex] = { ...updatedSets[setIndex], ...setData };
+        }
         return { ...ex, sets: updatedSets };
       }
       return ex;
@@ -248,15 +266,28 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
     const updatedExercises = currentWorkout.exercises.map((ex) => {
       if (ex.id === exerciseId) {
+        const isCardioEx = isCardio(ex.exercise);
+        const isJump = isJumpRope(ex.exercise);
         const lastSet = ex.sets[ex.sets.length - 1];
-        const newSet: Set = {
-          reps: lastSet?.reps,
-          weight: lastSet?.weight,
-          duration_seconds: lastSet?.duration_seconds,
-          distance_km: lastSet?.distance_km,
-          rest_seconds: 90,
-          completed: false,
-        };
+        const newSet = isCardioEx
+          ? isJump
+            ? {
+                duration_seconds: lastSet?.duration_seconds,
+                completed: false,
+                rest_seconds: 90,
+              }
+            : {
+                duration_seconds: lastSet?.duration_seconds,
+                distance_km: lastSet?.distance_km,
+                completed: false,
+                rest_seconds: 90,
+              }
+          : {
+              reps: lastSet?.reps,
+              weight: lastSet?.weight,
+              completed: false,
+              rest_seconds: 90,
+            };
         return { ...ex, sets: [...ex.sets, newSet] };
       }
       return ex;
@@ -518,9 +549,10 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       if (currentProgram && selectedTemplate) {
         programWorkouts = currentProgram.progressHistory
           .map((session: ProgramProgress) => {
-            const templateSession = selectedTemplate.sessions.find(
-              (s: TemplateSession) => s.id === session.sessionId
-            );
+            const templateSession =
+              selectedTemplate.exercises?.find(
+                (s: TemplateExerciseDetail) => s.id === session.sessionId
+              ) || [];
 
             if (!templateSession) {
               console.warn(
@@ -531,7 +563,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
             return {
               id: generateUUID(),
-              name: templateSession.name,
+              name: (templateSession as TemplateExerciseDetail).exercise_name,
               date: session.date,
               started_at: session.date,
               finished_at: session.date + (session.duration || 0) * 1000,
@@ -775,3 +807,8 @@ const getMuscleGroupsFromExerciseId = (exerciseId: string): string[] => {
   }
   return ["full_body"]; // Valeur par défaut
 };
+
+// Ajout d'une fonction utilitaire pour détecter la corde à sauter
+const isJumpRope = (ex: Exercise) =>
+  ex.category === "cardio" && ex.name.toLowerCase().includes("corde");
+const isCardio = (ex: Exercise) => ex.category === "cardio";

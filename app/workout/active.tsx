@@ -18,7 +18,6 @@ import { PRNotification } from "../../components/workout/active/PRNotification";
 import { ProgressionSuggestionCard } from "@/components/workout/active/ProgressionSuggestion";
 import { WorkoutHeader } from "@/components/workout/active/WorkoutHeader";
 import { ExerciseCard } from "@/components/workout/active/ExerciseCard";
-import { ExerciseList } from "@/components/workout/active/ExerciseList";
 import { ExerciseNavigation } from "@/components/workout/active/ExerciseNavigation";
 import { useWorkoutSession } from "@/hooks/useWorkoutSession";
 import { programService } from "@/services/programService";
@@ -45,7 +44,6 @@ export default function WorkoutScreen() {
 
   useKeepAwake();
 
-  // Charger les données du programme si nécessaire
   useEffect(() => {
     if (mode === "program" && params.sessionId && params.programId) {
       loadProgramSession();
@@ -113,8 +111,6 @@ export default function WorkoutScreen() {
     newPRs,
     markPRsSeen,
     getProgressionSuggestion,
-    goToExercise,
-    completedExercises,
   } = useWorkoutSession(mode, programSession || undefined);
 
   // Affichage des PRs
@@ -298,6 +294,10 @@ export default function WorkoutScreen() {
             sets={exerciseData?.sets || []}
             isBodyweightExercise={bodyWeightExercise}
             isCardio={currentExerciseData?.category === "cardio"}
+            isJumpRope={
+              currentExerciseData?.category === "cardio" &&
+              currentExerciseData?.name.toLowerCase().includes("corde")
+            }
             suggestedWeight={getSuggestedWeight(currentExerciseData)}
             onSetCompleted={handleSetCompleted}
             onSetDataChange={updateSetData}
@@ -311,13 +311,7 @@ export default function WorkoutScreen() {
             totalExercises={exercises.length}
             onPrevious={handlePreviousExercise}
             onNext={handleNextExercise}
-          />
-
-          <ExerciseList
-            exercises={exercises}
-            currentExerciseIndex={effectiveExerciseIndex}
-            completedExercises={completedExercises}
-            onExercisePress={goToExercise}
+            nextExercise={exercises[effectiveExerciseIndex + 1]}
           />
         </ScrollView>
       </>

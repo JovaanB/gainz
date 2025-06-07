@@ -24,6 +24,7 @@ interface ExerciseCardProps {
   sets: Set[];
   isCardio: boolean;
   isBodyweightExercise: boolean;
+  isJumpRope?: boolean;
   suggestedWeight?: number;
   onSetCompleted: (setIndex: number, weight: number, reps: number) => void;
   onSetDataChange: (
@@ -54,11 +55,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 }) => {
   const isSetReady = (set: Set) => {
     if (isCardio) {
-      if (exerciseName.toLowerCase().includes("corde")) {
-        return (set.duration_seconds || 0) > 0;
-      } else {
-        return (set.duration_seconds || 0) > 0 && (set.distance_km || 0) > 0;
-      }
+      return (set.duration_seconds || 0) > 0 && (set.distance_km || 0) > 0;
     }
     return (set.weight || 0) >= 0 && (set.reps || 0) > 0;
   };
@@ -145,32 +142,25 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                       editable={!set.completed}
                     />
                   </View>
-
-                  {!exerciseName.toLowerCase().includes("corde") && (
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Distance (km)</Text>
-                      <TextInput
-                        style={[
-                          styles.input,
-                          set.completed && styles.inputCompleted,
-                        ]}
-                        value={set.distance_km?.toString() || ""}
-                        onChangeText={(text) => {
-                          const distance =
-                            text === "" ? undefined : parseFloat(text);
-                          onSetDataChange(
-                            setIndex,
-                            "distance_km",
-                            distance || 0
-                          );
-                        }}
-                        keyboardType="decimal-pad"
-                        placeholder="0.0"
-                        placeholderTextColor="#9CA3AF"
-                        editable={!set.completed}
-                      />
-                    </View>
-                  )}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Distance (km)</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        set.completed && styles.inputCompleted,
+                      ]}
+                      value={set.distance_km?.toString() || ""}
+                      onChangeText={(text) => {
+                        const distance =
+                          text === "" ? undefined : parseFloat(text);
+                        onSetDataChange(setIndex, "distance_km", distance || 0);
+                      }}
+                      keyboardType="decimal-pad"
+                      placeholder="0.0"
+                      placeholderTextColor="#9CA3AF"
+                      editable={!set.completed}
+                    />
+                  </View>
                 </>
               ) : (
                 <>

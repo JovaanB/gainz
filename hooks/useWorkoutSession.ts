@@ -108,12 +108,7 @@ export const useWorkoutSession = (
         initialData[exercise.id] = {
           sets: Array(exercise.sets)
             .fill(null)
-            .map(() => ({
-              weight: undefined,
-              reps: undefined,
-              completed: false,
-              rest_seconds: exercise.rest_seconds,
-            })),
+            .map(() => initialSet(exercise)),
           completed: false,
         };
       });
@@ -180,12 +175,7 @@ export const useWorkoutSession = (
         initialData[exercise.id] = {
           sets: Array(exercise.sets)
             .fill(null)
-            .map(() => ({
-              weight: undefined,
-              reps: undefined,
-              completed: false,
-              rest_seconds: exercise.rest_seconds,
-            })),
+            .map(() => initialSet(exercise)),
           completed: false,
         };
       });
@@ -315,10 +305,7 @@ export const useWorkoutSession = (
   ) => {
     if (!currentExerciseId) return;
 
-    const isCardio =
-      currentExerciseData?.name.toLowerCase().includes("course") ||
-      currentExerciseData?.name.toLowerCase().includes("vélo") ||
-      currentExerciseData?.name.toLowerCase().includes("corde");
+    const isCardio = currentExerciseData?.category === "cardio";
 
     if (isProgramMode) {
       setSessionData((prev) => {
@@ -329,8 +316,10 @@ export const useWorkoutSession = (
                   ...set,
                   ...(isCardio
                     ? {
-                        distance_km: weight,
                         duration_seconds: reps,
+                        ...(isJumpRope(currentExerciseData)
+                          ? {}
+                          : { distance_km: weight }),
                         completed: true,
                       }
                     : { weight, reps, completed: true }),
@@ -616,6 +605,34 @@ export const useWorkoutSession = (
       }
       goToExercise(index);
     }
+  };
+
+  // Ajout d'une fonction utilitaire pour détecter la corde à sauter
+  const isJumpRope = (ex: Exercise) =>
+    ex.category === "cardio" && ex.name.toLowerCase().includes("corde");
+  const isCardio = (ex: Exercise) => ex.category === "cardio";
+
+  const initialSet = (exercise: Exercise) => {
+    if (isCardio(exercise)) {
+      return isJumpRope(exercise)
+        ? {
+            duration_seconds: undefined,
+            completed: false,
+            rest_seconds: exercise.rest_seconds,
+          }
+        : {
+            duration_seconds: undefined,
+            distance_km: undefined,
+            completed: false,
+            rest_seconds: exercise.rest_seconds,
+          };
+    }
+    return {
+      weight: undefined,
+      reps: undefined,
+      completed: false,
+      rest_seconds: exercise.rest_seconds,
+    };
   };
 
   return {
