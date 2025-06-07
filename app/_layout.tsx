@@ -45,10 +45,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthGuard>
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="auth" options={{ headerShown: false }} />
+          <Stack.Screen name="auth" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="workout" />
-          <Stack.Screen name="templates/index" />
+          <Stack.Screen name="programs/index" />
+          <Stack.Screen name="programs/[id]" />
           <Stack.Screen name="+not-found" />
         </Stack>
         <WelcomeFlow />

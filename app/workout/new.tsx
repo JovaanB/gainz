@@ -12,12 +12,14 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Keyboard,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useWorkoutStore } from "@/store/workoutStore";
 import { useExerciseStore } from "@/store/exerciseStore";
-import { WORKOUT_TEMPLATES, WorkoutTemplate } from "@/data/workoutTemplates";
+import { useTemplateStore } from "@/store/templateStore";
+import { SupabaseWorkoutTemplate } from "@/services/templateService";
 import { AddExerciseModal } from "@/components/exercises/AddExerciseModal";
 import { ExerciseWithSource } from "@/services/exerciseService";
 import { useAuthStore } from "@/store/authStore";
@@ -31,13 +33,23 @@ export default function NewWorkoutScreen() {
   const [workoutName, setWorkoutName] = useState("");
   const [step, setStep] = useState<Step>("name");
   const [selectedTemplate, setSelectedTemplate] =
-    useState<WorkoutTemplate | null>(null);
+    useState<SupabaseWorkoutTemplate | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
   const { startWorkout } = useWorkoutStore();
-
   const { isAnonymous } = useAuthStore();
 
+  // Template store
+  const {
+    availableTemplates,
+    isLoading: templatesLoading,
+    error: templatesError,
+    loadTemplates,
+    addToFavorites,
+    removeFromFavorites,
+  } = useTemplateStore();
+
+  // Exercise store
   const {
     exercises,
     selectedExercises,
@@ -52,7 +64,17 @@ export default function NewWorkoutScreen() {
   } = useExerciseStore();
 
   useEffect(() => {
-    loadExercises();
+    // Charger les exercices et templates
+    const initializeData = async () => {
+      try {
+        await Promise.all([loadExercises(), loadTemplates()]);
+      } catch (error) {
+        console.error("Error initializing data:", error);
+      }
+    };
+
+    initializeData();
+
     return () => {
       clearSelection();
     };
@@ -72,10 +94,8 @@ export default function NewWorkoutScreen() {
       return;
     }
 
-    // Démarre la séance
     startWorkout(workoutName, selectedExercises);
 
-    // Vérifie que la séance a bien été démarrée
     const { currentWorkout } = useWorkoutStore.getState();
     if (!currentWorkout) {
       console.error("Erreur lors du démarrage de la séance");
@@ -92,22 +112,26 @@ export default function NewWorkoutScreen() {
       return;
     }
 
-    // Navigation vers l'écran de workout actif
     router.replace("/workout/active");
   };
 
-  const handleUseTemplate = (template: WorkoutTemplate) => {
+  const handleUseTemplate = async (template: SupabaseWorkoutTemplate) => {
     setSelectedTemplate(template);
 
     // Auto-sélectionne les exercices du template
-    const templateExercises = exercises.filter((ex) =>
-      template.exercises.includes(ex.id)
-    );
-    templateExercises.forEach((exercise) => {
-      if (!selectedExercises.some((selected) => selected.id === exercise.id)) {
-        toggleExerciseSelection(exercise);
-      }
-    });
+    if (template?.exercises && template?.exercises.length > 0) {
+      template.exercises.forEach((templateExercise) => {
+        const exercise = exercises.find(
+          (ex) => ex.id === templateExercise.exercise_id
+        );
+        if (
+          exercise &&
+          !selectedExercises.some((selected) => selected.id === exercise.id)
+        ) {
+          toggleExerciseSelection(exercise);
+        }
+      });
+    }
 
     setStep("exercises");
   };
@@ -116,10 +140,49 @@ export default function NewWorkoutScreen() {
     setStep("exercises");
   };
 
+  const handleToggleFavorite = async (template: SupabaseWorkoutTemplate) => {
+    try {
+      if (template.is_favorite) {
+        await removeFromFavorites(template.id);
+      } else {
+        await addToFavorites(template.id);
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      Alert.alert("Erreur", "Impossible de modifier les favoris");
+    }
+  };
+
   const getMuscleGroups = () => {
     const allGroups = exercises.flatMap((ex) => ex.muscle_groups);
     const uniqueGroups = [...new Set(allGroups)].sort();
     return uniqueGroups;
+  };
+
+  const getDifficultyLabel = (difficulty: string) => {
+    switch (difficulty) {
+      case "beginner":
+        return "Débutant";
+      case "intermediate":
+        return "Intermédiaire";
+      case "advanced":
+        return "Avancé";
+      default:
+        return difficulty;
+    }
+  };
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case "beginner":
+        return "#34C759";
+      case "intermediate":
+        return "#FF9500";
+      case "advanced":
+        return "#FF3B30";
+      default:
+        return "#007AFF";
+    }
   };
 
   const renderExerciseItem = ({ item }: { item: ExerciseWithSource }) => {
@@ -183,6 +246,83 @@ export default function NewWorkoutScreen() {
     );
   };
 
+  const renderTemplateCard = (template: SupabaseWorkoutTemplate) => {
+    const difficultyColor = getDifficultyColor(template.difficulty);
+
+    return (
+      <TouchableOpacity
+        key={template.id}
+        style={styles.templateCard}
+        onPress={() => handleUseTemplate(template)}
+      >
+        <View style={styles.templateHeader}>
+          <View
+            style={[styles.templateIcon, { backgroundColor: difficultyColor }]}
+          >
+            <Ionicons name={template.icon as any} size={24} color="#FFFFFF" />
+          </View>
+          <View style={styles.templateMeta}>
+            <Text style={styles.templateDuration}>
+              {template.estimated_duration}min
+            </Text>
+            <View
+              style={[
+                styles.difficultyBadge,
+                { backgroundColor: `${difficultyColor}20` },
+              ]}
+            >
+              <Text style={[styles.difficultyText, { color: difficultyColor }]}>
+                {getDifficultyLabel(template.difficulty)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Bouton favori pour les utilisateurs connectés */}
+          {!isAnonymous && (
+            <TouchableOpacity
+              style={styles.favoriteButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleToggleFavorite(template);
+              }}
+            >
+              <Ionicons
+                name={template.is_favorite ? "heart" : "heart-outline"}
+                size={20}
+                color={template.is_favorite ? "#FF3B30" : "#8E8E93"}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <Text style={styles.templateName}>{template.name}</Text>
+        <Text style={styles.templateDescription}>
+          {template.description || "Aucune description"}
+        </Text>
+
+        <View style={styles.templateMuscles}>
+          {template.muscle_groups.slice(0, 3).map((muscle, index) => (
+            <View key={index} style={styles.templateMuscleTag}>
+              <Text style={styles.templateMuscleText}>{muscle}</Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.templateExerciseCount}>
+          {template.exercise_count || template.exercises?.length || 0} exercices
+        </Text>
+
+        {/* Badge pour templates personnels */}
+        {!template.is_global && (
+          <View style={styles.personalBadge}>
+            <Text style={styles.personalBadgeText}>Personnel</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  // Screen: Name Input
   if (step === "name") {
     return (
       <SafeAreaView style={styles.container}>
@@ -251,6 +391,7 @@ export default function NewWorkoutScreen() {
     );
   }
 
+  // Screen: Template Selection
   if (step === "template") {
     return (
       <SafeAreaView style={styles.container}>
@@ -273,81 +414,68 @@ export default function NewWorkoutScreen() {
             Commence avec un template ou crée ta séance personnalisée
           </Text>
 
-          <View style={styles.templatesGrid}>
-            {WORKOUT_TEMPLATES.map((template) => (
+          {/* Loading state */}
+          {templatesLoading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>
+                Chargement des templates...
+              </Text>
+            </View>
+          )}
+
+          {/* Error state */}
+          {templatesError && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={48} color="#FF3B30" />
+              <Text style={styles.errorText}>{templatesError}</Text>
               <TouchableOpacity
-                key={template.id}
-                style={styles.templateCard}
-                onPress={() => handleUseTemplate(template)}
+                style={styles.retryButton}
+                onPress={loadTemplates}
               >
-                <View style={styles.templateHeader}>
-                  <View
-                    style={[
-                      styles.templateIcon,
-                      styles[`difficulty${template.difficulty}`],
-                    ]}
-                  >
-                    <Ionicons
-                      name={template.icon as any}
-                      size={24}
-                      color="#FFFFFF"
-                    />
-                  </View>
-                  <View style={styles.templateMeta}>
-                    <Text style={styles.templateDuration}>
-                      {template.estimatedDuration}min
+                <Text style={styles.retryButtonText}>Réessayer</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Templates Grid */}
+          {!templatesLoading && !templatesError && (
+            <>
+              {availableTemplates.length > 0 ? (
+                <View style={styles.templatesGrid}>
+                  {availableTemplates.map(renderTemplateCard)}
+                </View>
+              ) : (
+                <View style={styles.noTemplatesContainer}>
+                  <Ionicons name="document-outline" size={48} color="#8E8E93" />
+                  <Text style={styles.noTemplatesText}>
+                    Aucun template disponible
+                  </Text>
+                  {isAnonymous && (
+                    <Text style={styles.noTemplatesSubtext}>
+                      Connectez-vous pour accéder à plus de templates
                     </Text>
-                    <View
-                      style={[
-                        styles.difficultyBadge,
-                        styles[`difficulty${template.difficulty}Badge`],
-                      ]}
-                    >
-                      <Text style={styles.difficultyText}>
-                        {template.difficulty === "beginner"
-                          ? "Débutant"
-                          : template.difficulty === "intermediate"
-                          ? "Intermédiaire"
-                          : "Avancé"}
-                      </Text>
-                    </View>
-                  </View>
+                  )}
                 </View>
+              )}
 
-                <Text style={styles.templateName}>{template.name}</Text>
-                <Text style={styles.templateDescription}>
-                  {template.description}
-                </Text>
-
-                <View style={styles.templateMuscles}>
-                  {template.muscleGroups.slice(0, 3).map((muscle, index) => (
-                    <View key={index} style={styles.templateMuscleTag}>
-                      <Text style={styles.templateMuscleText}>{muscle}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <Text style={styles.templateExerciseCount}>
-                  {template.exercises.length} exercices
+              <TouchableOpacity
+                style={styles.customButton}
+                onPress={handleSkipTemplate}
+              >
+                <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+                <Text style={styles.customButtonText}>
+                  Créer une séance personnalisée
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-
-          <TouchableOpacity
-            style={styles.customButton}
-            onPress={handleSkipTemplate}
-          >
-            <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
-            <Text style={styles.customButtonText}>
-              Créer une séance personnalisée
-            </Text>
-          </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     );
   }
 
+  // Screen: Exercise Selection (reste identique)
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -369,7 +497,7 @@ export default function NewWorkoutScreen() {
           />
           <Text style={styles.templateInfoText}>
             Template {selectedTemplate.name} •{" "}
-            {selectedTemplate.estimatedDuration}min
+            {selectedTemplate.estimated_duration}min
           </Text>
           <TouchableOpacity onPress={() => setSelectedTemplate(null)}>
             <Ionicons name="close-circle" size={16} color="#8E8E93" />
@@ -515,7 +643,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
-
   icon: {
     marginRight: 0,
   },
@@ -759,15 +886,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  difficultybeginner: {
-    backgroundColor: "#34C759",
-  },
-  difficultyintermediate: {
-    backgroundColor: "#FF9500",
-  },
-  difficultyadvanced: {
-    backgroundColor: "#FF3B30",
-  },
   templateMeta: {
     alignItems: "flex-end",
   },
@@ -781,15 +899,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-  },
-  difficultybeginnerBadge: {
-    backgroundColor: "#E8F5E8",
-  },
-  difficultyintermediateBadge: {
-    backgroundColor: "#FFF3E0",
-  },
-  difficultyadvancedBadge: {
-    backgroundColor: "#FFEBEE",
   },
   difficultyText: {
     fontSize: 11,
@@ -869,5 +978,69 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginLeft: 8,
     marginRight: 8,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#8E8E93",
+  },
+  errorContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#FF3B30",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  noTemplatesContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  noTemplatesText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#8E8E93",
+    textAlign: "center",
+  },
+  noTemplatesSubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#C7C7CC",
+    textAlign: "center",
+  },
+  favoriteButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  personalBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  personalBadgeText: {
+    fontSize: 10,
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });

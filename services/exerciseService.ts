@@ -180,13 +180,13 @@ class ExerciseService {
 
   // Recherche exacte par nom
   async findExerciseByExactName(
-    name: string
+    id: string
   ): Promise<ExerciseWithSource | null> {
     try {
       const { data, error } = await supabase
         .from("user_accessible_exercises")
         .select("*")
-        .eq("name", name.trim()) // Correspondance exacte
+        .eq("id", id) // Correspondance exacte
         .order("is_global", { ascending: false }) // Priorité aux globaux
         .limit(1)
         .single();

@@ -1,5 +1,4 @@
 import { ExerciseWithSource } from "@/services/exerciseService";
-import { Exercise } from "@/types";
 
 export const DEFAULT_EXERCISES: ExerciseWithSource[] = [
   {

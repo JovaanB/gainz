@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import { useWorkoutStore } from "@/store/workoutStore";
-import { StorageService } from "@/services/storage";
+import { StorageService } from "@/services/storageService";
 
 export const useWorkoutPersistence = () => {
   const { currentWorkout, isRecording } = useWorkoutStore();

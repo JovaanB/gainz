@@ -33,7 +33,7 @@ interface ExerciseCardProps {
   ) => void;
   onRemoveSet?: (setIndex: number) => void;
   onAddSet?: () => void;
-  isTemplateMode?: boolean;
+  isProgramMode?: boolean;
 }
 
 export const ExerciseCard: React.FC<ExerciseCardProps> = ({
@@ -50,7 +50,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   onSetDataChange,
   onRemoveSet,
   onAddSet,
-  isTemplateMode = false,
+  isProgramMode = false,
 }) => {
   const isSetReady = (set: Set) => {
     if (isCardio) {
@@ -95,7 +95,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         <View style={styles.weightSuggestion}>
           <Ionicons name="trending-up" size={16} color="#34C759" />
           <Text style={styles.weightSuggestionText}>
-            {isTemplateMode ? "Poids suggéré" : "Dernier poids"}:{" "}
+            {isProgramMode ? "Poids suggéré" : "Dernier poids"}:{" "}
             {isBodyweightExercise ? "Poids du corps" : `${suggestedWeight}kg`}
           </Text>
         </View>
@@ -252,7 +252,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
               />
             </TouchableOpacity>
 
-            {!isTemplateMode && onRemoveSet && sets.length > 1 && (
+            {!isProgramMode && onRemoveSet && sets.length > 1 && (
               <TouchableOpacity
                 style={styles.removeSetButton}
                 onPress={() => onRemoveSet(setIndex)}
@@ -263,7 +263,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
           </View>
         ))}
 
-        {!isTemplateMode && onAddSet && (
+        {!isProgramMode && onAddSet && (
           <TouchableOpacity style={styles.addSetButton} onPress={onAddSet}>
             <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
             <Text style={styles.addSetButtonText}>Ajouter une série</Text>

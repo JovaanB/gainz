@@ -1,17 +1,21 @@
-// src/store/templateStore.ts
+// store/templateStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  WorkoutTemplate,
   TemplateSession,
   UserProgram,
   ProgramProgress,
   TemplateStats,
 } from "../types/templates";
 import { Workout, Set } from "@/types";
-import { POPULAR_TEMPLATES } from "@/data/templates";
-import { StorageService } from "@/services/storage";
+import { StorageService } from "@/services/storageService";
 import { generateUUID } from "@/utils/uuid";
+import {
+  templateService,
+  SupabaseWorkoutTemplate,
+  CreateTemplateRequest,
+} from "@/services/templateService";
+import { useAuthStore } from "@/store/authStore";
 
 interface ProgramSet extends Set {
   weight: number;
@@ -22,26 +26,41 @@ interface ProgramSet extends Set {
 }
 
 interface TemplateState {
-  // Templates disponibles
-  availableTemplates: WorkoutTemplate[];
+  // Templates disponibles depuis Supabase
+  availableTemplates: SupabaseWorkoutTemplate[];
   favoriteTemplates: string[];
+  isLoading: boolean;
+  error: string | null;
 
   // Programme actuel de l'utilisateur
   currentProgram?: UserProgram;
 
   // États temporaires
-  selectedTemplate?: WorkoutTemplate;
+  selectedTemplate?: SupabaseWorkoutTemplate;
   previewSession?: TemplateSession;
 
   // Actions pour les templates
-  loadTemplates: () => void;
+  loadTemplates: () => Promise<void>;
+  refreshTemplates: () => Promise<void>;
   selectTemplate: (templateId: string) => void;
-  startProgram: (templateId: string, customizations?: any) => void;
-  stopProgram: () => void;
 
   // Actions pour les favoris
-  addToFavorites: (templateId: string) => void;
-  removeFromFavorites: (templateId: string) => void;
+  addToFavorites: (templateId: string) => Promise<void>;
+  removeFromFavorites: (templateId: string) => Promise<void>;
+
+  // Actions CRUD pour templates personnels
+  createPersonalTemplate: (
+    templateData: CreateTemplateRequest
+  ) => Promise<SupabaseWorkoutTemplate>;
+  updatePersonalTemplate: (
+    templateId: string,
+    updates: Partial<CreateTemplateRequest>
+  ) => Promise<void>;
+  deletePersonalTemplate: (templateId: string) => Promise<void>;
+  duplicateTemplate: (
+    templateId: string,
+    newName?: string
+  ) => Promise<SupabaseWorkoutTemplate>;
 
   // Actions pour la progression
   completeSession: (sessionData: ProgramProgress) => void;
@@ -53,12 +72,22 @@ interface TemplateState {
   getTotalSessions: () => number;
   getProgramStats: () => TemplateStats;
 
+  // Recherche et filtres
+  searchTemplates: (query: string) => Promise<SupabaseWorkoutTemplate[]>;
+  getTemplatesByDifficulty: (
+    difficulty: "beginner" | "intermediate" | "advanced"
+  ) => SupabaseWorkoutTemplate[];
+  getFavoriteTemplates: () => SupabaseWorkoutTemplate[];
+
   // Personnalisation
-  customizeTemplate: (modifications: Partial<WorkoutTemplate>) => void;
+  customizeTemplate: (modifications: Partial<SupabaseWorkoutTemplate>) => void;
   updateSessionWeights: (
     sessionId: string,
     weights: Record<string, number>
   ) => void;
+
+  // Utilitaires
+  clearError: () => void;
 }
 
 const STORAGE_KEY = "template-storage";
@@ -69,27 +98,49 @@ export const useTemplateStore = create<TemplateState>()(
       // États initiaux
       availableTemplates: [],
       favoriteTemplates: [],
+      isLoading: false,
+      error: null,
 
       loadTemplates: async () => {
         try {
-          // Charger les données depuis AsyncStorage
-          const savedData = await StorageService.getUserSettings();
-          const templateData = savedData?.[STORAGE_KEY];
+          set({ isLoading: true, error: null });
 
-          if (templateData) {
+          const { isAuthenticated } = useAuthStore.getState();
+
+          if (!isAuthenticated) {
+            // Utilisateur non connecté, charger templates de base
             set({
-              currentProgram: templateData.currentProgram,
-              selectedTemplate: templateData.selectedTemplate,
-              favoriteTemplates: templateData.favoriteTemplates || [],
+              availableTemplates: [],
+              isLoading: false,
             });
+            return;
           }
 
-          // Charger les templates disponibles
-          set({ availableTemplates: POPULAR_TEMPLATES });
+          // Charger tous les templates accessibles depuis Supabase
+          const templates = await templateService.getAccessibleTemplates();
+
+          // Extraire les IDs des favoris pour la compatibilité avec l'état local
+          const favoriteIds = templates
+            .filter((t: SupabaseWorkoutTemplate) => t.is_favorite)
+            .map((t: SupabaseWorkoutTemplate) => t.id);
+
+          set({
+            availableTemplates: templates,
+            favoriteTemplates: favoriteIds,
+          });
         } catch (error) {
           console.error("Error loading templates:", error);
-          set({ availableTemplates: POPULAR_TEMPLATES });
+          set({
+            error: "Impossible de charger les templates",
+            availableTemplates: [],
+          });
+        } finally {
+          set({ isLoading: false });
         }
+      },
+
+      refreshTemplates: async () => {
+        await get().loadTemplates();
       },
 
       // Sélectionner un template pour prévisualisation
@@ -99,83 +150,173 @@ export const useTemplateStore = create<TemplateState>()(
         set({ selectedTemplate: template });
       },
 
-      // Démarrer un programme
-      startProgram: async (templateId, customizations = {}) => {
-        const { availableTemplates } = get();
-        const template = availableTemplates.find((t) => t.id === templateId);
-
-        if (template) {
-          const newProgram: UserProgram = {
-            templateId,
-            startDate: Date.now(),
-            currentWeek: 1,
-            currentSession: 0,
-            completedSessions: [],
-            customizations,
-            progressHistory: [],
-          };
-
-          const newState = {
-            currentProgram: newProgram,
-            selectedTemplate: template,
-          };
-
-          set(newState);
-
-          // Sauvegarder dans AsyncStorage
-          try {
-            const savedData = (await StorageService.getUserSettings()) || {};
-            await StorageService.saveUserSettings({
-              ...savedData,
-              [STORAGE_KEY]: {
-                ...savedData[STORAGE_KEY],
-                ...newState,
-              },
-            });
-          } catch (error) {
-            console.error("Error saving program:", error);
-          }
-        }
-      },
-
-      // Arrêter le programme actuel
-      stopProgram: () => {
-        set({
-          currentProgram: undefined,
-          selectedTemplate: undefined,
-        });
-      },
-
       // Gestion des favoris
-      addToFavorites: (templateId) => {
-        const { favoriteTemplates } = get();
-        if (!favoriteTemplates.includes(templateId)) {
-          set({
-            favoriteTemplates: [...favoriteTemplates, templateId],
-          });
+      addToFavorites: async (templateId) => {
+        try {
+          set({ error: null });
+          await templateService.addToFavorites(templateId);
+
+          // Mettre à jour l'état local
+          const { favoriteTemplates, availableTemplates } = get();
+          if (!favoriteTemplates.includes(templateId)) {
+            set({
+              favoriteTemplates: [...favoriteTemplates, templateId],
+              availableTemplates: availableTemplates.map((t) =>
+                t.id === templateId ? { ...t, is_favorite: true } : t
+              ),
+            });
+          }
+        } catch (error) {
+          console.error("Error adding to favorites:", error);
+          set({ error: "Impossible d'ajouter aux favoris" });
         }
       },
 
-      removeFromFavorites: (templateId) => {
-        const { favoriteTemplates } = get();
-        set({
-          favoriteTemplates: favoriteTemplates.filter(
-            (id) => id !== templateId
-          ),
-        });
+      removeFromFavorites: async (templateId) => {
+        try {
+          set({ error: null });
+          await templateService.removeFromFavorites(templateId);
+
+          // Mettre à jour l'état local
+          const { favoriteTemplates, availableTemplates } = get();
+          set({
+            favoriteTemplates: favoriteTemplates.filter(
+              (id) => id !== templateId
+            ),
+            availableTemplates: availableTemplates.map((t) =>
+              t.id === templateId ? { ...t, is_favorite: false } : t
+            ),
+          });
+        } catch (error) {
+          console.error("Error removing from favorites:", error);
+          set({ error: "Impossible de supprimer des favoris" });
+        }
       },
 
-      // Compléter une session
+      // CRUD pour templates personnels
+      createPersonalTemplate: async (templateData) => {
+        try {
+          set({ isLoading: true, error: null });
+          const newTemplate = await templateService.createPersonalTemplate(
+            templateData
+          );
+
+          // Ajouter à la liste locale
+          const { availableTemplates } = get();
+          set({
+            availableTemplates: [newTemplate, ...availableTemplates],
+          });
+
+          return newTemplate;
+        } catch (error) {
+          console.error("Error creating personal template:", error);
+          set({ error: "Impossible de créer le template personnel" });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      updatePersonalTemplate: async (templateId, updates) => {
+        try {
+          set({ isLoading: true, error: null });
+          await templateService.updatePersonalTemplate(templateId, updates);
+
+          // Recharger les templates pour avoir les données à jour
+          await get().loadTemplates();
+        } catch (error) {
+          console.error("Error updating personal template:", error);
+          set({ error: "Impossible de modifier le template" });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      deletePersonalTemplate: async (templateId) => {
+        try {
+          set({ isLoading: true, error: null });
+          await templateService.deletePersonalTemplate(templateId);
+
+          // Supprimer de la liste locale
+          const { availableTemplates, favoriteTemplates } = get();
+          set({
+            availableTemplates: availableTemplates.filter(
+              (t) => t.id !== templateId
+            ),
+            favoriteTemplates: favoriteTemplates.filter(
+              (id) => id !== templateId
+            ),
+          });
+        } catch (error) {
+          console.error("Error deleting personal template:", error);
+          set({ error: "Impossible de supprimer le template" });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      duplicateTemplate: async (templateId, newName) => {
+        try {
+          set({ isLoading: true, error: null });
+          const duplicatedTemplate = await templateService.duplicateTemplate(
+            templateId,
+            newName
+          );
+
+          // Ajouter à la liste locale
+          const { availableTemplates } = get();
+          set({
+            availableTemplates: [duplicatedTemplate, ...availableTemplates],
+          });
+
+          return duplicatedTemplate;
+        } catch (error) {
+          console.error("Error duplicating template:", error);
+          set({ error: "Impossible de dupliquer le template" });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      // Recherche et filtres
+      searchTemplates: async (query) => {
+        try {
+          return await templateService.searchTemplates(query);
+        } catch (error) {
+          console.error("Error searching templates:", error);
+          return [];
+        }
+      },
+
+      getTemplatesByDifficulty: (difficulty) => {
+        const { availableTemplates } = get();
+        return availableTemplates.filter(
+          (template) => template.difficulty === difficulty
+        );
+      },
+
+      getFavoriteTemplates: () => {
+        const { availableTemplates } = get();
+        return availableTemplates.filter((template) => template.is_favorite);
+      },
+
+      // Compléter une session (logique existante)
       completeSession: async (sessionData) => {
         const { currentProgram, selectedTemplate } = get();
 
         if (currentProgram && selectedTemplate) {
           const sessionId = `${currentProgram.templateId}_${currentProgram.currentSession}`;
-          const sessionIndex =
-            currentProgram.currentSession % selectedTemplate.sessions.length;
-          const templateSession = selectedTemplate.sessions[sessionIndex];
 
-          if (!templateSession) {
+          // Convertir le template Supabase en format legacy pour la compatibilité
+          const legacySession = convertSupabaseTemplateToLegacySession(
+            selectedTemplate,
+            currentProgram.currentSession
+          );
+
+          if (!legacySession) {
             console.error("Session template not found");
             return;
           }
@@ -186,7 +327,7 @@ export const useTemplateStore = create<TemplateState>()(
           // Créer un workout à partir de la session
           const workout: Workout = {
             id: generateUUID(),
-            name: templateSession.name,
+            name: legacySession.name,
             date: sessionData.date,
             started_at: sessionData.date,
             finished_at: Date.now(),
@@ -252,7 +393,7 @@ export const useTemplateStore = create<TemplateState>()(
         }
       },
 
-      // Passer une session
+      // Autres méthodes existantes (skipSession, getCurrentSession, etc.)
       skipSession: () => {
         const { currentProgram, selectedTemplate } = get();
 
@@ -262,8 +403,9 @@ export const useTemplateStore = create<TemplateState>()(
             currentSession: currentProgram.currentSession + 1,
           };
 
-          const totalSessionsInWeek = selectedTemplate.sessions.length;
-          if (updatedProgram.currentSession >= totalSessionsInWeek) {
+          // Logique de semaine basée sur les exercises du template
+          const sessionsPerWeek = selectedTemplate.exercises?.length || 3;
+          if (updatedProgram.currentSession >= sessionsPerWeek) {
             updatedProgram.currentWeek += 1;
             updatedProgram.currentSession = 0;
           }
@@ -272,28 +414,28 @@ export const useTemplateStore = create<TemplateState>()(
         }
       },
 
-      // Obtenir la session actuelle
       getCurrentSession: () => {
         const { currentProgram, selectedTemplate } = get();
 
         if (currentProgram && selectedTemplate) {
-          const sessionIndex =
-            currentProgram.currentSession % selectedTemplate.sessions.length;
-          return selectedTemplate.sessions[sessionIndex] || null;
+          return convertSupabaseTemplateToLegacySession(
+            selectedTemplate,
+            currentProgram.currentSession
+          );
         }
 
         return null;
       },
 
-      // Obtenir la prochaine session
       getNextSession: () => {
         const { currentProgram, selectedTemplate } = get();
 
         if (currentProgram && selectedTemplate) {
-          const nextSessionIndex =
-            (currentProgram.currentSession + 1) %
-            selectedTemplate.sessions.length;
-          return selectedTemplate.sessions[nextSessionIndex] || null;
+          const nextSessionIndex = currentProgram.currentSession + 1;
+          return convertSupabaseTemplateToLegacySession(
+            selectedTemplate,
+            nextSessionIndex
+          );
         }
 
         return null;
@@ -304,52 +446,29 @@ export const useTemplateStore = create<TemplateState>()(
 
         if (!currentProgram || !selectedTemplate) return 0;
 
-        // 1. Calculer la durée totale du programme selon son type
         const getTotalDuration = () => {
-          // Programmes de force : progression linéaire
-          if (selectedTemplate.category === "strength") {
-            return 12; // 12 semaines pour StrongLifts etc.
-          }
-
-          // Programmes de masse : cycles plus longs
-          if (selectedTemplate.category === "muscle_building") {
-            return 16; // 16 semaines pour PPL etc.
-          }
-
-          // Programmes fitness/débutant
-          if (selectedTemplate.category === "general_fitness") {
-            return 8; // 8 semaines pour Full Body
-          }
-
-          // Par défaut
-          return 12;
+          if (selectedTemplate.difficulty === "advanced") return 16;
+          if (selectedTemplate.difficulty === "intermediate") return 12;
+          return 8; // beginner
         };
 
-        // 2. Calculer le progrès basé sur les sessions terminées
         const getSessionProgress = () => {
-          const totalSessionsPerWeek = selectedTemplate.sessions.length;
+          const totalSessionsPerWeek = selectedTemplate.exercises?.length || 3;
           const totalWeeks = getTotalDuration();
           const totalSessions = totalSessionsPerWeek * totalWeeks;
-
           const completedSessions = currentProgram.completedSessions.length;
-
           return (completedSessions / totalSessions) * 100;
         };
 
-        // 3. Calculer le progrès basé sur les semaines
         const getWeekProgress = () => {
           const totalWeeks = getTotalDuration();
           const currentWeek = currentProgram.currentWeek;
-
           return (currentWeek / totalWeeks) * 100;
         };
 
-        // 4. Prendre le maximum entre les deux approches
         const sessionProgress = getSessionProgress();
         const weekProgress = getWeekProgress();
-
-        // Utiliser le plus élevé des deux, plafonné à 100%
-        return Math.min(sessionProgress, weekProgress, 100);
+        return Math.min(Math.max(sessionProgress, weekProgress), 100);
       },
 
       customizeTemplate: (modifications) => {
@@ -365,7 +484,6 @@ export const useTemplateStore = create<TemplateState>()(
         }
       },
 
-      // Mettre à jour les poids pour une session
       updateSessionWeights: (sessionId, weights) => {
         const { currentProgram } = get();
 
@@ -391,23 +509,20 @@ export const useTemplateStore = create<TemplateState>()(
         const { selectedTemplate } = get();
         if (!selectedTemplate) return 0;
 
-        if (selectedTemplate.category === "strength") return 12;
-        if (selectedTemplate.category === "muscle_building") return 16;
-        if (selectedTemplate.category === "general_fitness") return 8;
-        return 12;
+        if (selectedTemplate.difficulty === "advanced") return 16;
+        if (selectedTemplate.difficulty === "intermediate") return 12;
+        return 8;
       },
 
-      // Obtenir le nombre total de sessions du programme
       getTotalSessions: () => {
         const { selectedTemplate } = get();
         if (!selectedTemplate) return 0;
 
         const duration = get().getProgramDuration();
-        const sessionsPerWeek = selectedTemplate.sessions.length;
+        const sessionsPerWeek = selectedTemplate.exercises?.length || 3;
         return duration * sessionsPerWeek;
       },
 
-      // Obtenir les stats détaillées
       getProgramStats: () => {
         const { currentProgram, selectedTemplate } = get();
 
@@ -429,7 +544,7 @@ export const useTemplateStore = create<TemplateState>()(
         const remainingSessions = totalSessions - completedSessions;
         const progressPercent = get().getProgramProgress();
 
-        const averageSessionsPerWeek = selectedTemplate.frequency;
+        const averageSessionsPerWeek = selectedTemplate.exercises?.length || 3;
         const weeksRemaining = remainingSessions / averageSessionsPerWeek;
         const estimatedCompletion = new Date();
         estimatedCompletion.setDate(
@@ -446,6 +561,10 @@ export const useTemplateStore = create<TemplateState>()(
           estimatedCompletion,
         };
       },
+
+      clearError: () => {
+        set({ error: null });
+      },
     }),
     {
       name: STORAGE_KEY,
@@ -457,3 +576,42 @@ export const useTemplateStore = create<TemplateState>()(
     }
   )
 );
+
+// Fonction helper pour convertir les templates Supabase en format legacy
+function convertSupabaseTemplateToLegacySession(
+  template: SupabaseWorkoutTemplate,
+  sessionIndex: number
+): TemplateSession | null {
+  if (!template.exercises || template.exercises.length === 0) {
+    return null;
+  }
+
+  // Créer une session basée sur les exercices du template
+  const sessionName = `${template.name} - Session ${sessionIndex + 1}`;
+
+  return {
+    id: `${template.id}_${sessionIndex}`,
+    name: sessionName,
+    exercises: template.exercises.map(
+      (ex: {
+        exercise_id: string;
+        exercise_name: string;
+        suggested_sets: number;
+        suggested_reps?: string;
+        rest_seconds: number;
+        notes?: string;
+      }) => ({
+        exercise_id: ex.exercise_id,
+        name: ex.exercise_name,
+        sets: ex.suggested_sets,
+        reps: ex.suggested_reps || "8-12",
+        rest_seconds: ex.rest_seconds,
+        notes: ex.notes,
+        is_bodyweight: false,
+      })
+    ),
+    estimated_duration: template.estimated_duration,
+    difficulty: template.difficulty,
+    rest_between_exercises: 90, // Valeur par défaut
+  };
+}

@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
-import { useTemplateStore } from "@/store/templateStore";
 import { useWorkoutStore } from "@/store/workoutStore";
 import { useProgressStore } from "@/store/progressStore";
+import { useProgramStore } from "@/store/programStore";
+import { ProgramSessionDetail } from "@/services/programService";
 import { Workout, Exercise } from "@/types";
 import { normalizeExercise, formatReps } from "@/utils/workoutUtils";
 import { isBodyweightExercise } from "@/utils/exerciseUtils";
-import { getExerciseById } from "@/data/templates";
 import { generateUUID } from "@/utils/uuid";
 
 interface UnifiedExercise {
@@ -23,18 +23,28 @@ interface UnifiedExercise {
   is_bodyweight: boolean;
 }
 
-type WorkoutMode = "template" | "free";
+// Interface pour les données de session de programme
+interface ProgramSessionData {
+  sessionId: string;
+  programId: string;
+  sessionData: ProgramSessionDetail;
+}
 
-export const useWorkoutSession = (mode: WorkoutMode) => {
+type WorkoutMode = "free" | "program";
+
+export const useWorkoutSession = (
+  mode: WorkoutMode,
+  programSession?: ProgramSessionData
+) => {
   const [sessionStartTime] = useState(Date.now());
   const [sessionDuration, setSessionDuration] = useState(0);
   const [sessionData, setSessionData] = useState<Record<string, any>>({});
-  const [templateExerciseIndex, setTemplateExerciseIndex] = useState(0);
+  const [programExerciseIndex, setProgramExerciseIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [programExercises, setProgramExercises] = useState<Exercise[]>([]);
   const timerRef = useRef<NodeJS.Timeout>();
 
   // Stores
-  const { selectedTemplate, getCurrentSession, completeSession } =
-    useTemplateStore();
   const {
     currentWorkout,
     restTimer,
@@ -51,7 +61,6 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     goToNextExercise,
     goToPreviousExercise,
     workoutHistory,
-    startTemplateWorkout,
     addWorkoutToHistory,
   } = useWorkoutStore();
 
@@ -63,73 +72,105 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     updateProgress,
   } = useProgressStore();
 
-  // Données selon le mode
-  const isTemplateMode = mode === "template";
-  const currentSession = isTemplateMode ? getCurrentSession() : null;
+  const { activeProgram, completeSession: completeProgramSession } =
+    useProgramStore();
 
-  // Vérification de l'état initial
+  // Données selon le mode
+  const isProgramMode = mode === "program";
+
+  // Initialisation des exercices selon le mode
   useEffect(() => {
     markPRsSeen();
 
-    if (isTemplateMode) {
-      const currentSession = getCurrentSession();
-
-      if (!currentSession) {
-        console.error("Aucune session template trouvée");
-        router.replace("/");
-        return;
-      }
-
-      const exercisesData = currentSession.exercises.map((ex) => {
-        const exercise = getExerciseById(ex.exercise_id);
-
-        return {
-          ...exercise,
-          ...ex,
-        };
-      });
-
-      currentSession.exercises = exercisesData;
-
-      // Vérifier si la séance est déjà initialisée
-      if (!currentWorkout) {
-        startTemplateWorkout(currentSession.id, currentSession.exercises);
-      }
-    } else if (!currentWorkout) {
+    if (isProgramMode && programSession) {
+      initializeProgramSession();
+    } else if (!isProgramMode && !currentWorkout) {
       router.replace("/workout/new");
     }
-  }, [isTemplateMode, markPRsSeen]);
+  }, [isProgramMode, programSession, markPRsSeen]);
 
-  const rawExercises = isTemplateMode
-    ? currentSession?.exercises || []
+  const initializeProgramSession = async () => {
+    if (!programSession) return;
+
+    try {
+      setIsLoading(true);
+      const { sessionData } = programSession;
+
+      // Convertir les exercices du programme vers le format unifié
+      const convertedExercises: Exercise[] = sessionData.exercises.map(
+        (exercise, index) => ({
+          id: exercise.exercise_id,
+          name: exercise.exercise_name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          rest_seconds: exercise.rest_seconds,
+          notes: exercise.notes,
+          progression_notes: exercise.progression_notes,
+          muscle_groups: [], // À remplir si nécessaire
+          category: "strength", // Valeur par défaut
+          is_bodyweight: exercise.is_bodyweight || false,
+          order_index: index,
+        })
+      );
+
+      setProgramExercises(convertedExercises);
+
+      // Initialiser les données de session pour le mode programme
+      const initialData: Record<string, any> = {};
+      convertedExercises.forEach((exercise) => {
+        initialData[exercise.id] = {
+          sets: Array(exercise.sets)
+            .fill(null)
+            .map(() => ({
+              weight: undefined,
+              reps: undefined,
+              completed: false,
+              rest_seconds: exercise.rest_seconds,
+            })),
+          completed: false,
+        };
+      });
+      setSessionData(initialData);
+    } catch (error) {
+      console.error("Error initializing program session:", error);
+      Alert.alert("Erreur", "Impossible de charger la session du programme");
+      router.back();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Sélection des exercices selon le mode
+  const rawExercises = isProgramMode
+    ? programExercises
     : currentWorkout?.exercises || [];
 
-  const exercises: Exercise[] = rawExercises.map((exercise) =>
-    normalizeExercise(exercise, mode)
-  );
+  const exercises: Exercise[] = isProgramMode
+    ? programExercises
+    : rawExercises.map((exercise) => normalizeExercise(exercise, mode));
 
-  const effectiveExerciseIndex = isTemplateMode
-    ? templateExerciseIndex
+  const effectiveExerciseIndex = isProgramMode
+    ? programExerciseIndex
     : currentExerciseIndex;
 
   const currentExerciseData = exercises[effectiveExerciseIndex];
   const currentExerciseId = currentExerciseData?.id;
 
-  const currentWorkoutExercise = !isTemplateMode
+  const currentWorkoutExercise = !isProgramMode
     ? currentWorkout?.exercises.find(
         (ex) => ex.exercise.id === currentExerciseData?.id
       )
     : undefined;
 
-  const exerciseData = isTemplateMode
+  const exerciseData = isProgramMode
     ? sessionData[currentExerciseId]
     : currentWorkoutExercise;
 
-  const sessionTitle = isTemplateMode
-    ? currentSession?.name || "Session Template"
+  const sessionTitle = isProgramMode
+    ? programSession?.sessionData.name || "Session Programme"
     : currentWorkout?.name || "Séance Libre";
 
-  const programTitle = isTemplateMode ? selectedTemplate?.name : undefined;
+  const programTitle = isProgramMode ? "Test" || "Programme" : undefined;
 
   // Effets
   useEffect(() => {
@@ -140,9 +181,10 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
 
   useEffect(() => {
     if (
-      isTemplateMode &&
+      isProgramMode &&
       exercises.length > 0 &&
-      Object.keys(sessionData).length === 0
+      Object.keys(sessionData).length === 0 &&
+      !isLoading
     ) {
       const initialData: Record<string, any> = {};
       exercises.forEach((exercise) => {
@@ -153,13 +195,14 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
               weight: undefined,
               reps: undefined,
               completed: false,
+              rest_seconds: exercise.rest_seconds,
             })),
           completed: false,
         };
       });
       setSessionData(initialData);
     }
-  }, [isTemplateMode, exercises]);
+  }, [isProgramMode, exercises, isLoading]);
 
   useEffect(() => {
     if (restTimer.isActive) {
@@ -190,6 +233,9 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   // Fonctions utilitaires
   const getSuggestedWeight = (exercise: Exercise): number => {
     if (isBodyweightExercise(exercise)) return 0;
+
+    // Pas de suggestions pour les programmes (ils ont leurs propres objectifs)
+    if (isProgramMode) return 0;
 
     const suggestionWeight = getProgressionSuggestion(exercise.id)?.currentBest
       .weight;
@@ -233,7 +279,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     : currentWorkoutExercise?.exercise.is_bodyweight === true;
 
   const getSessionProgress = () => {
-    if (isTemplateMode) {
+    if (isProgramMode) {
       const completedCount = Object.values(sessionData).filter(
         (data: any) => data.completed
       ).length;
@@ -256,7 +302,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   ) => {
     if (!currentExerciseId) return;
 
-    if (isTemplateMode) {
+    if (isProgramMode) {
       setSessionData((prev) => ({
         ...prev,
         [currentExerciseId]: {
@@ -285,7 +331,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
       currentExerciseData?.name.toLowerCase().includes("vélo") ||
       currentExerciseData?.name.toLowerCase().includes("corde");
 
-    if (isTemplateMode) {
+    if (isProgramMode) {
       setSessionData((prev) => {
         const updatedSets = prev[currentExerciseId].sets.map(
           (set: any, index: number) =>
@@ -350,8 +396,8 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
         }));
       }
 
-      if (isTemplateMode) {
-        setTemplateExerciseIndex(templateExerciseIndex + 1);
+      if (isProgramMode) {
+        setProgramExerciseIndex(programExerciseIndex + 1);
       } else {
         goToNextExercise();
       }
@@ -364,9 +410,9 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
 
   const handleSessionFinalCleanup = () => {
     markPRsSeen();
-
-    useWorkoutStore.getState().cancelWorkout();
-
+    if (!isProgramMode) {
+      useWorkoutStore.getState().cancelWorkout();
+    }
     router.replace("/(tabs)");
   };
 
@@ -375,9 +421,8 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
       let completedWorkoutData: Workout | null = null;
       let detectedNewPRs: any[] = [];
 
-      // Étape 1: Préparer les données de l'objet completedWorkout et déclencher la sauvegarde
-      if (isTemplateMode) {
-        // Créer l'objet workout pour la sauvegarde et la détection de PRs
+      if (isProgramMode) {
+        // Créer l'objet workout pour la détection de PRs et la sauvegarde
         const workoutToSave: Workout = {
           id: generateUUID(),
           name: sessionTitle,
@@ -397,21 +442,18 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
             completed: sessionData[exercise.id]?.completed || false,
             order_index: exercises.indexOf(exercise),
             notes: exercise.notes || "",
-            template_data: currentSession?.exercises.find(
-              (e) => e.exercise_id === exercise.id
-            ),
           })),
           completed: true,
           user_id: "current_user",
         };
 
         addWorkoutToHistory(workoutToSave);
-
         completedWorkoutData = workoutToSave;
 
-        if (currentSession) {
+        // Compléter la session dans le store des programmes
+        if (programSession) {
           const progressData = {
-            sessionId: currentSession.id,
+            sessionId: programSession.sessionId,
             date: Date.now(),
             duration: sessionDuration,
             exercises: Object.entries(sessionData).map(
@@ -421,14 +463,16 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
               })
             ),
           };
-          await completeSession(progressData);
+          await completeProgramSession(progressData);
         }
       } else {
+        // Séance libre - utiliser la logique existante
         completedWorkoutData = await useWorkoutStore
           .getState()
           .saveAndFinalizeWorkout();
       }
 
+      // Détection des PRs
       if (completedWorkoutData) {
         const { workoutHistory: globalWorkoutHistory } =
           useWorkoutStore.getState();
@@ -441,9 +485,6 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
       useProgressStore.setState({ newPRs: detectedNewPRs });
 
       if (detectedNewPRs.length === 0) {
-        router.replace(`/(tabs)/`);
-        useWorkoutStore.getState().cancelWorkout();
-        markPRsSeen();
         handleSessionFinalCleanup();
       }
     } catch (error) {
@@ -452,7 +493,6 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
         "Erreur",
         "Une erreur est survenue lors de la finalisation de la séance. Veuillez réessayer."
       );
-      // En cas d'erreur, nettoyer l'état et rediriger vers l'accueil
       handleSessionFinalCleanup();
     }
   };
@@ -465,7 +505,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
       currentExerciseData?.name.toLowerCase().includes("vélo") ||
       currentExerciseData?.name.toLowerCase().includes("corde");
 
-    if (isTemplateMode) {
+    if (isProgramMode) {
       setSessionData((prev) => {
         const lastSet =
           prev[currentExerciseId].sets[prev[currentExerciseId].sets.length - 1];
@@ -480,6 +520,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
                 reps: lastSet?.reps,
               }),
           completed: false,
+          rest_seconds: currentExerciseData?.rest_seconds || 90,
         };
 
         return {
@@ -497,26 +538,39 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
 
   const handleRemoveSet = (setIndex: number) => {
     if (!currentExerciseId) return;
-    if (!currentWorkoutExercise) return;
 
-    Alert.alert(
-      "Supprimer la série ?",
-      "Cette action ne peut pas être annulée.",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Supprimer",
-          style: "destructive",
-          onPress: () => removeSet(currentWorkoutExercise.id, setIndex),
+    if (isProgramMode) {
+      if (sessionData[currentExerciseId].sets.length <= 1) return;
+
+      setSessionData((prev) => ({
+        ...prev,
+        [currentExerciseId]: {
+          ...prev[currentExerciseId],
+          sets: prev[currentExerciseId].sets.filter(
+            (_: any, index: number) => index !== setIndex
+          ),
         },
-      ]
-    );
+      }));
+    } else if (currentWorkoutExercise) {
+      Alert.alert(
+        "Supprimer la série ?",
+        "Cette action ne peut pas être annulée.",
+        [
+          { text: "Annuler", style: "cancel" },
+          {
+            text: "Supprimer",
+            style: "destructive",
+            onPress: () => removeSet(currentWorkoutExercise.id, setIndex),
+          },
+        ]
+      );
+    }
   };
 
   const handlePreviousExercise = () => {
-    if (isTemplateMode) {
-      if (templateExerciseIndex > 0) {
-        setTemplateExerciseIndex(templateExerciseIndex - 1);
+    if (isProgramMode) {
+      if (programExerciseIndex > 0) {
+        setProgramExerciseIndex(programExerciseIndex - 1);
       }
     } else {
       goToPreviousExercise();
@@ -524,14 +578,14 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   };
 
   const handleNextExercise = () => {
-    const isCurrentExerciseCompleted = isTemplateMode
+    const isCurrentExerciseCompleted = isProgramMode
       ? sessionData[currentExerciseId]?.completed
       : currentWorkoutExercise?.completed;
 
     if (effectiveExerciseIndex < exercises.length - 1) {
-      if (isCurrentExerciseCompleted || !isTemplateMode) {
-        if (isTemplateMode) {
-          setTemplateExerciseIndex(effectiveExerciseIndex + 1);
+      if (isCurrentExerciseCompleted || !isProgramMode) {
+        if (isProgramMode) {
+          setProgramExerciseIndex(effectiveExerciseIndex + 1);
         } else {
           goToNextExercise();
         }
@@ -543,7 +597,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
         );
       }
     } else {
-      if (isCurrentExerciseCompleted || !isTemplateMode) {
+      if (isCurrentExerciseCompleted || !isProgramMode) {
         handleSessionCompleted();
       } else {
         Alert.alert(
@@ -555,8 +609,8 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
   };
 
   const handleGoToExercise = (index: number) => {
-    if (isTemplateMode) {
-      setTemplateExerciseIndex(index);
+    if (isProgramMode) {
+      setProgramExerciseIndex(index);
     } else {
       if (!currentWorkout) {
         Alert.alert(
@@ -585,15 +639,17 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     exerciseData,
     restTimer,
     newPRs,
-    isTemplateMode,
+    isProgramMode,
+    isLoading,
     targets,
     currentWorkout,
-    currentSession,
     getSuggestedWeight,
     bodyWeightExercise,
     getCurrentExerciseTargets,
     sessionProgress: getSessionProgress(),
-    getProgressionSuggestion,
+    getProgressionSuggestion: isProgramMode
+      ? () => null
+      : getProgressionSuggestion,
     updateSetData,
     handleSetCompleted,
     handleAddSet,
@@ -609,7 +665,7 @@ export const useWorkoutSession = (mode: WorkoutMode) => {
     removeSet,
     goToExercise: handleGoToExercise,
     markPRsSeen,
-    completedExercises: isTemplateMode
+    completedExercises: isProgramMode
       ? Object.fromEntries(
           Object.entries(sessionData).map(([id, data]) => [id, data.completed])
         )

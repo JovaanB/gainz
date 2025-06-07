@@ -12,6 +12,7 @@ interface ProgressionSuggestionProps {
 export const ProgressionSuggestionCard: React.FC<
   ProgressionSuggestionProps
 > = ({ suggestion, onApply, onDismiss }) => {
+  const [isShow, setIsShow] = useState(true);
   const [isApplied, setIsApplied] = useState(false);
 
   const handleApply = () => {
@@ -22,6 +23,7 @@ export const ProgressionSuggestionCard: React.FC<
       // Reset après 2 secondes
       setTimeout(() => {
         setIsApplied(false);
+        setIsShow(false);
       }, 2000);
     }
   };
@@ -34,65 +36,70 @@ export const ProgressionSuggestionCard: React.FC<
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="trending-up" size={20} color="#007AFF" />
-        </View>
-        <Text style={styles.title}>Suggestion de progression</Text>
-        {onDismiss && (
-          <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
-            <Ionicons name="close" size={18} color="#8E8E93" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.comparisonRow}>
-          <View style={styles.comparisonItem}>
-            <Text style={styles.comparisonLabel}>Dernière fois</Text>
-            <Text style={styles.currentValue}>
-              {formatPerformance(suggestion.currentBest)}
-            </Text>
+    isShow && (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="trending-up" size={20} color="#007AFF" />
           </View>
-
-          <Ionicons
-            name="arrow-forward"
-            size={16}
-            color="#FF6B35"
-            style={styles.arrow}
-          />
-
-          <View style={styles.comparisonItem}>
-            <Text style={styles.comparisonLabel}>Objectif suggéré</Text>
-            <Text style={styles.suggestedValue}>
-              {formatPerformance(suggestion.suggested)}
-            </Text>
-          </View>
+          <Text style={styles.title}>Suggestion de progression</Text>
+          {onDismiss && (
+            <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
+              <Ionicons name="close" size={18} color="#8E8E93" />
+            </TouchableOpacity>
+          )}
         </View>
 
-        <Text style={styles.reasoning}>{suggestion.reasoning}</Text>
+        <View style={styles.content}>
+          <View style={styles.comparisonRow}>
+            <View style={styles.comparisonItem}>
+              <Text style={styles.comparisonLabel}>Dernière fois</Text>
+              <Text style={styles.currentValue}>
+                {formatPerformance(suggestion.currentBest)}
+              </Text>
+            </View>
 
-        {onApply && (
-          <TouchableOpacity
-            style={[styles.applyButton, isApplied && styles.applyButtonSuccess]}
-            onPress={handleApply}
-            disabled={isApplied}
-          >
-            <Text
+            <Ionicons
+              name="arrow-forward"
+              size={16}
+              color="#FF6B35"
+              style={styles.arrow}
+            />
+
+            <View style={styles.comparisonItem}>
+              <Text style={styles.comparisonLabel}>Objectif suggéré</Text>
+              <Text style={styles.suggestedValue}>
+                {formatPerformance(suggestion.suggested)}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.reasoning}>{suggestion.reasoning}</Text>
+
+          {onApply && (
+            <TouchableOpacity
               style={[
-                styles.applyButtonText,
-                isApplied && styles.applyButtonTextSuccess,
+                styles.applyButton,
+                isApplied && styles.applyButtonSuccess,
               ]}
+              onPress={handleApply}
+              disabled={isApplied}
             >
-              {isApplied
-                ? "✅ Suggestion appliquée"
-                : "Utiliser cette suggestion"}
-            </Text>
-          </TouchableOpacity>
-        )}
+              <Text
+                style={[
+                  styles.applyButtonText,
+                  isApplied && styles.applyButtonTextSuccess,
+                ]}
+              >
+                {isApplied
+                  ? "✅ Suggestion appliquée"
+                  : "Utiliser cette suggestion"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-    </View>
+    )
   );
 };
 

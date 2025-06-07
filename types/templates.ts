@@ -1,5 +1,6 @@
 // src/types/templates.ts
 
+import { SupabaseWorkoutExercise } from "@/config/supabase";
 import { number } from "yup";
 
 export interface WorkoutTemplate {
@@ -12,7 +13,7 @@ export interface WorkoutTemplate {
   frequency: number; // sessions per week
   equipment: Equipment[];
   tags: string[];
-  sessions: TemplateSession[];
+  exercises: SupabaseWorkoutExercise[];
   preview_image?: string;
   popularity: number; // pour le tri
   estimated_results: string;
@@ -20,10 +21,11 @@ export interface WorkoutTemplate {
 
 export interface TemplateSession {
   id: string;
-  name: string; // "Push Day", "Legs", "Upper Body"
+  name: string;
   exercises: TemplateExercise[];
   rest_between_exercises: number;
   estimated_duration: number;
+  difficulty: "beginner" | "intermediate" | "advanced";
 }
 
 export interface TemplateExercise {

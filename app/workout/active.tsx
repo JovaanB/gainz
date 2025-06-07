@@ -1,5 +1,5 @@
-// src/app/workout/active.tsx - Écran Unifié
-import React from "react";
+// src/app/workout/active.tsx - Écran Unifié avec support programmes
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useKeepAwake } from "expo-keep-awake";
@@ -20,12 +21,87 @@ import { ExerciseCard } from "@/components/workout/active/ExerciseCard";
 import { ExerciseList } from "@/components/workout/active/ExerciseList";
 import { ExerciseNavigation } from "@/components/workout/active/ExerciseNavigation";
 import { useWorkoutSession } from "@/hooks/useWorkoutSession";
+import { programService } from "@/services/programService";
+
+// Interface pour les données de programme
+interface ProgramSessionData {
+  sessionId: string;
+  programId: string;
+  sessionData: any; // ProgramSessionDetail
+}
 
 export default function WorkoutScreen() {
-  const params = useLocalSearchParams<{ mode?: string }>();
-  const paramMode = (params?.mode as "template" | "free") || "free";
+  const params = useLocalSearchParams<{
+    mode?: string;
+    sessionId?: string;
+    programId?: string;
+  }>();
+
+  const mode = (params?.mode as "free" | "program") || "free";
+  const [programSession, setProgramSession] =
+    useState<ProgramSessionData | null>(null);
+  const [isLoadingProgram, setIsLoadingProgram] = useState(false);
+  const [programLoadError, setProgramLoadError] = useState<string | null>(null);
 
   useKeepAwake();
+
+  // Debug: Log des paramètres reçus
+  useEffect(() => {
+    console.log("🔍 Debug - Paramètres reçus:", {
+      mode,
+      sessionId: params.sessionId,
+      programId: params.programId,
+      allParams: params,
+    });
+  }, [mode, params]);
+
+  // Charger les données du programme si nécessaire
+  useEffect(() => {
+    if (mode === "program" && params.sessionId && params.programId) {
+      console.log("✅ Conditions remplies, chargement du programme...");
+      loadProgramSession();
+    } else {
+      console.log("❌ Conditions non remplies:", {
+        mode,
+        hasSessionId: !!params.sessionId,
+        hasProgramId: !!params.programId,
+      });
+    }
+  }, [mode, params.sessionId, params.programId]);
+
+  const loadProgramSession = async () => {
+    try {
+      setIsLoadingProgram(true);
+      setProgramLoadError(null);
+
+      const programDetails = await programService.getProgramById(
+        params.programId!
+      );
+
+      if (programDetails?.sessions) {
+        const sessionDetail = programDetails.sessions.find(
+          (s) => s.id === params.sessionId
+        );
+
+        if (sessionDetail) {
+          setProgramSession({
+            sessionId: params.sessionId!,
+            programId: params.programId!,
+            sessionData: sessionDetail,
+          });
+        } else {
+          setProgramLoadError("Session non trouvée dans ce programme");
+        }
+      } else {
+        setProgramLoadError("Programme non trouvé");
+      }
+    } catch (error) {
+      console.error("Error loading program session:", error);
+      setProgramLoadError("Erreur lors du chargement de la session");
+    } finally {
+      setIsLoadingProgram(false);
+    }
+  };
 
   const {
     sessionDuration,
@@ -38,7 +114,8 @@ export default function WorkoutScreen() {
     targets,
     bodyWeightExercise,
     sessionProgress,
-    isTemplateMode,
+    isProgramMode,
+    isLoading: isSessionLoading,
     getSuggestedWeight,
     handleSetCompleted,
     updateSetData,
@@ -55,8 +132,9 @@ export default function WorkoutScreen() {
     getProgressionSuggestion,
     goToExercise,
     completedExercises,
-  } = useWorkoutSession(paramMode);
+  } = useWorkoutSession(mode, programSession || undefined);
 
+  // Affichage des PRs
   if (newPRs.length > 0) {
     return (
       <SafeAreaView style={styles.container}>
@@ -72,13 +150,45 @@ export default function WorkoutScreen() {
     );
   }
 
+  // Chargement du programme
+  if (mode === "program" && (isLoadingProgram || isSessionLoading)) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>
+            Chargement de la session du programme...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Erreur de chargement du programme
+  if (mode === "program" && programLoadError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>{programLoadError}</Text>
+          <TouchableOpacity
+            style={styles.backToHomeButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backToHomeText}>Retour</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Aucun exercice trouvé
   if (!exercises || exercises.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>
-            {isTemplateMode
-              ? "Session template non trouvée..."
+            {isProgramMode
+              ? "Session de programme non trouvée..."
               : "Aucun exercice sélectionné..."}
           </Text>
           <TouchableOpacity
@@ -119,7 +229,8 @@ export default function WorkoutScreen() {
           onAddTime={addTimeToTimer}
         />
 
-        {!isTemplateMode &&
+        {/* Suggestions de progression - seulement pour les séances libres */}
+        {!isProgramMode &&
           currentExerciseData &&
           (() => {
             const suggestion = getProgressionSuggestion(currentExerciseData.id);
@@ -134,7 +245,7 @@ export default function WorkoutScreen() {
                       );
 
                       if (nextSetIndex === -1) {
-                        if (!isTemplateMode && exerciseData) {
+                        if (!isProgramMode && exerciseData) {
                           handleAddSet();
                           setTimeout(() => {
                             updateSetData(
@@ -168,6 +279,29 @@ export default function WorkoutScreen() {
             );
           })()}
 
+        {/* Badge pour indiquer le mode programme */}
+        {isProgramMode && (
+          <View style={styles.programBadgeContainer}>
+            <View style={styles.programBadge}>
+              <Text style={styles.programBadgeText}>
+                📋 Session de programme
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Notes de progression pour les programmes */}
+        {isProgramMode && currentExerciseData?.progression_notes && (
+          <View style={styles.progressionNotesContainer}>
+            <Text style={styles.progressionNotesTitle}>
+              💡 Conseil de progression
+            </Text>
+            <Text style={styles.progressionNotesText}>
+              {currentExerciseData.progression_notes}
+            </Text>
+          </View>
+        )}
+
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <ExerciseCard
             exerciseName={currentExerciseData?.name || ""}
@@ -186,7 +320,7 @@ export default function WorkoutScreen() {
             onSetDataChange={updateSetData}
             onRemoveSet={handleRemoveSet}
             onAddSet={handleAddSet}
-            isTemplateMode={isTemplateMode}
+            isProgramMode={isProgramMode}
           />
 
           <ExerciseNavigation
@@ -225,6 +359,13 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     marginBottom: 16,
+    marginTop: 12,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#FF3B30",
+    textAlign: "center",
+    marginBottom: 16,
   },
   backToHomeButton: {
     backgroundColor: "#007AFF",
@@ -240,5 +381,42 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  programBadgeContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  programBadge: {
+    backgroundColor: "#E3F2FD",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2196F3",
+  },
+  programBadgeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1976D2",
+  },
+  progressionNotesContainer: {
+    margin: 16,
+    backgroundColor: "#F0F8FF",
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#007AFF",
+  },
+  progressionNotesTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007AFF",
+    marginBottom: 8,
+  },
+  progressionNotesText: {
+    fontSize: 14,
+    color: "#333",
+    lineHeight: 20,
   },
 });
