@@ -9,13 +9,13 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useProgramStore } from "@/store/programStore";
 import { SupabaseWorkoutProgram } from "@/services/programService";
 import { useAuthStore } from "@/store/authStore";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type CategoryFilter =
   | "all"
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
