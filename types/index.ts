@@ -49,18 +49,6 @@ export interface WorkoutHistory extends Workout {
   notes?: string;
 }
 
-export interface UnifiedExercise {
-  id: string;
-  name: string;
-  sets: number;
-  reps?: string | number;
-  rest_seconds?: number;
-  notes?: string;
-  progression_notes?: string;
-  is_bodyweight?: boolean;
-  suggested_weight?: number;
-}
-
 export interface TemplateExercise extends Exercise {
   progression_type?: string;
   progression_value?: number;

@@ -45,27 +45,10 @@ export default function WorkoutScreen() {
 
   useKeepAwake();
 
-  // Debug: Log des paramètres reçus
-  useEffect(() => {
-    console.log("🔍 Debug - Paramètres reçus:", {
-      mode,
-      sessionId: params.sessionId,
-      programId: params.programId,
-      allParams: params,
-    });
-  }, [mode, params]);
-
   // Charger les données du programme si nécessaire
   useEffect(() => {
     if (mode === "program" && params.sessionId && params.programId) {
-      console.log("✅ Conditions remplies, chargement du programme...");
       loadProgramSession();
-    } else {
-      console.log("❌ Conditions non remplies:", {
-        mode,
-        hasSessionId: !!params.sessionId,
-        hasProgramId: !!params.programId,
-      });
     }
   }, [mode, params.sessionId, params.programId]);
 

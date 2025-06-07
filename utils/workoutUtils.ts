@@ -1,16 +1,6 @@
 // src/utils/workoutUtils.ts
 import { Set, Exercise } from "@/types";
 
-interface UnifiedExercise {
-  id: string;
-  name: string;
-  sets: number;
-  reps?: string | number;
-  rest_seconds?: number;
-  notes?: string;
-  progression_notes?: string;
-}
-
 type WorkoutMode = "template" | "free";
 
 // Fonction pour normaliser les exercices
@@ -29,7 +19,7 @@ export const normalizeExercise = (
       progression_notes: exercise.progression_notes,
       muscle_groups: exercise.muscle_groups,
       category: exercise.category,
-      is_bodyweight: exercise.is_bodyweight || false
+      is_bodyweight: exercise.is_bodyweight || false,
     };
   } else {
     return {
@@ -42,7 +32,7 @@ export const normalizeExercise = (
       progression_notes: undefined,
       muscle_groups: exercise.exercise.muscle_groups || [],
       category: exercise.exercise.category || "strength",
-      is_bodyweight: exercise.exercise.is_bodyweight || false
+      is_bodyweight: exercise.exercise.is_bodyweight || false,
     };
   }
 };

@@ -10,19 +10,6 @@ import { normalizeExercise, formatReps } from "@/utils/workoutUtils";
 import { isBodyweightExercise } from "@/utils/exerciseUtils";
 import { generateUUID } from "@/utils/uuid";
 
-interface UnifiedExercise {
-  id: string;
-  name: string;
-  sets: number;
-  reps?: string | number;
-  rest_seconds?: number;
-  notes?: string;
-  progression_notes?: string;
-  muscle_groups: string[];
-  category: string;
-  is_bodyweight: boolean;
-}
-
 // Interface pour les données de session de programme
 interface ProgramSessionData {
   sessionId: string;
@@ -72,7 +59,7 @@ export const useWorkoutSession = (
     updateProgress,
   } = useProgressStore();
 
-  const { activeProgram, completeSession: completeProgramSession } =
+  const { selectedProgram, completeSession: completeProgramSession } =
     useProgramStore();
 
   // Données selon le mode
@@ -170,7 +157,9 @@ export const useWorkoutSession = (
     ? programSession?.sessionData.name || "Session Programme"
     : currentWorkout?.name || "Séance Libre";
 
-  const programTitle = isProgramMode ? "Test" || "Programme" : undefined;
+  const programTitle = isProgramMode
+    ? selectedProgram?.name || "Programme"
+    : undefined;
 
   // Effets
   useEffect(() => {

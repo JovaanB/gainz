@@ -9,7 +9,6 @@ import {
   Alert,
   Platform,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Keyboard,
   ActivityIndicator,
@@ -23,6 +22,7 @@ import { SupabaseWorkoutTemplate } from "@/services/templateService";
 import { AddExerciseModal } from "@/components/exercises/AddExerciseModal";
 import { ExerciseWithSource } from "@/services/exerciseService";
 import { useAuthStore } from "@/store/authStore";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type Step = "name" | "template" | "exercises";
 

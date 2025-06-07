@@ -8,7 +8,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +18,7 @@ import {
   ProgramSessionDetail,
 } from "@/services/programService";
 import { useAuthStore } from "@/store/authStore";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProgramDetailScreen() {
   const router = useRouter();
