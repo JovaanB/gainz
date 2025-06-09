@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -16,11 +16,26 @@ import { useAuthStore } from "@/store/authStore";
 import { useWorkoutStore } from "@/store/workoutStore";
 import { useRouter } from "expo-router";
 import { SyncStatus } from "@/components/ui/SyncStatus";
+import { useAICoachStore } from "@/store/aiCoachStore";
+import { ProfileSetup } from "@/components/ai/ProfileSetup";
+import { RecommendationsModal } from "@/components/ai/RecommendationsModal";
 
 export default function ProfileScreen() {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [_notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [_soundEnabled, setSoundEnabled] = useState(true);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
   const router = useRouter();
+
+  const {
+    userProfile,
+    recommendations,
+    isAnalyzing,
+    lastAnalysis,
+    initializeProfile,
+    analyzePerformance,
+    dismissRecommendation,
+  } = useAICoachStore();
 
   const { user, isAnonymous, signOut } = useAuthStore();
   const { syncStatus, forceSyncAll, workoutHistory } = useWorkoutStore();
@@ -89,6 +104,49 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleAIAnalysis = async () => {
+    if (!userProfile) {
+      setShowProfileSetup(true);
+      return;
+    }
+
+    await analyzePerformance();
+    setShowRecommendations(true);
+  };
+
+  const handleProfileSetupComplete = () => {
+    setShowProfileSetup(false);
+    // Lancer automatiquement l'analyse après configuration
+    setTimeout(() => {
+      analyzePerformance();
+    }, 500);
+  };
+
+  const getAIStatusText = () => {
+    if (!userProfile) return "Configuration requise";
+    if (isAnalyzing) return "Analyse en cours...";
+    if (recommendations.filter((r) => !r.dismissed).length > 0) {
+      return `${
+        recommendations.filter((r) => !r.dismissed).length
+      } recommandations`;
+    }
+    if (lastAnalysis) {
+      const daysSince = Math.floor(
+        (Date.now() - lastAnalysis) / (1000 * 60 * 60 * 24)
+      );
+      return `Analysé il y a ${daysSince} jour${daysSince > 1 ? "s" : ""}`;
+    }
+    return "Prêt pour l'analyse";
+  };
+
+  const getAIStatusColor = () => {
+    if (!userProfile) return "#FF9500";
+    if (isAnalyzing) return "#007AFF";
+    if (recommendations.filter((r) => !r.dismissed).length > 0)
+      return "#34C759";
+    return "#8E8E93";
+  };
+
   const getUserDisplayName = () => {
     if (isAnonymous) return "Utilisateur anonyme";
     return user?.email?.split("@")[0] || "Utilisateur";
@@ -113,6 +171,14 @@ export default function ProfileScreen() {
       workoutDate.getFullYear() === now.getFullYear()
     );
   }).length;
+
+  useEffect(() => {
+    initializeProfile();
+  }, []);
+
+  if (showProfileSetup) {
+    return <ProfileSetup onComplete={handleProfileSetupComplete} />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -178,8 +244,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         </LinearGradient>
-
-        {/* Sync Status Card */}
 
         {/* Account Section */}
         <View style={styles.section}>
@@ -253,6 +317,129 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* AI Coach Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>IA Coach Personnel</Text>
+
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.cardRow} onPress={handleAIAnalysis}>
+              <View style={styles.cardRowLeft}>
+                <Ionicons name="bulb" size={24} color="#5856D6" />
+                <View>
+                  <Text style={styles.cardRowTitle}>
+                    Analyse de performance
+                  </Text>
+                  <Text style={styles.cardRowSubtitle}>
+                    {getAIStatusText()}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.aiStatusContainer}>
+                {isAnalyzing ? (
+                  <View style={styles.loadingIndicator} />
+                ) : (
+                  <>
+                    {recommendations.filter((r) => !r.dismissed).length > 0 && (
+                      <View
+                        style={[styles.badge, { backgroundColor: "#34C759" }]}
+                      >
+                        <Text style={styles.badgeText}>
+                          {recommendations.filter((r) => !r.dismissed).length}
+                        </Text>
+                      </View>
+                    )}
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#8E8E93"
+                    />
+                  </>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {userProfile && (
+              <>
+                <View style={styles.cardDivider} />
+
+                <TouchableOpacity
+                  style={styles.cardRow}
+                  onPress={() => setShowProfileSetup(true)}
+                >
+                  <View style={styles.cardRowLeft}>
+                    <Ionicons name="person-circle" size={24} color="#007AFF" />
+                    <View>
+                      <Text style={styles.cardRowTitle}>Profil IA</Text>
+                      <Text style={styles.cardRowSubtitle}>
+                        {userProfile.fitnessLevel === "beginner"
+                          ? "Débutant"
+                          : userProfile.fitnessLevel === "intermediate"
+                          ? "Intermédiaire"
+                          : "Avancé"}{" "}
+                        • {userProfile.goals.length} objectif
+                        {userProfile.goals.length > 1 ? "s" : ""}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+
+          {/* Recommandations récentes */}
+          {recommendations.filter((r) => !r.dismissed).length > 0 && (
+            <View style={[styles.card, { marginTop: 12 }]}>
+              <View style={styles.recommendationsHeader}>
+                <Ionicons name="bulb" size={20} color="#FF9500" />
+                <Text style={styles.recommendationsTitle}>
+                  Recommandations récentes
+                </Text>
+              </View>
+
+              {recommendations
+                .filter((r) => !r.dismissed)
+                .slice(0, 2)
+                .map((rec) => (
+                  <View key={rec.id}>
+                    <View style={styles.cardDivider} />
+                    <View style={styles.recommendationItem}>
+                      <View style={styles.recommendationContent}>
+                        <Text style={styles.recommendationTitle}>
+                          {rec.exerciseId
+                            ? `${rec.exerciseId} - ${rec.title}`
+                            : rec.title}
+                        </Text>
+                        <Text style={styles.recommendationDescription}>
+                          {rec.description}
+                        </Text>
+                        <View style={styles.recommendationMeta}>
+                          <View style={styles.confidenceBar}>
+                            <View
+                              style={[
+                                styles.confidenceFill,
+                                { width: `${rec.confidence * 100}%` },
+                              ]}
+                            />
+                          </View>
+                          <Text style={styles.confidenceText}>
+                            {Math.round(rec.confidence * 100)}% confiance
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.dismissButton}
+                        onPress={() => dismissRecommendation(rec.id)}
+                      >
+                        <Ionicons name="close" size={16} color="#8E8E93" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+            </View>
+          )}
         </View>
 
         {/* App Settings */}
@@ -364,6 +551,14 @@ export default function ProfileScreen() {
         {/* Bottom padding */}
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      {/* Modals */}
+      <RecommendationsModal
+        visible={showRecommendations}
+        recommendations={recommendations}
+        onClose={() => setShowRecommendations(false)}
+        onDismiss={dismissRecommendation}
+      />
     </SafeAreaView>
   );
 }
@@ -615,5 +810,91 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  aiStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  loadingIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#007AFF",
+    borderTopColor: "transparent",
+    // Note: Pour l'animation, vous pourriez ajouter une library comme react-native-reanimated
+  },
+  recommendationsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  recommendationsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+  recommendationItem: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    alignItems: "flex-start",
+  },
+  recommendationContent: {
+    flex: 1,
+    gap: 6,
+  },
+  recommendationTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+  recommendationDescription: {
+    fontSize: 13,
+    color: "#8E8E93",
+    lineHeight: 18,
+  },
+  recommendationMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 4,
+  },
+  confidenceBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: "#E5E5EA",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  confidenceFill: {
+    height: "100%",
+    backgroundColor: "#34C759",
+    borderRadius: 2,
+  },
+  confidenceText: {
+    fontSize: 11,
+    color: "#8E8E93",
+    fontWeight: "500",
+  },
+  dismissButton: {
+    padding: 8,
+    marginLeft: 8,
   },
 });

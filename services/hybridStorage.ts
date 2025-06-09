@@ -231,7 +231,6 @@ class HybridStorageService {
 
   async getWorkouts(): Promise<Workout[]> {
     try {
-      // Migrer les anciens IDs si nécessaire
       try {
         await this.migrateOldWorkoutIds();
         await this.migrateExerciseIds();
@@ -240,21 +239,17 @@ class HybridStorageService {
         return [];
       }
 
-      // 1. Toujours récupérer les données locales d'abord
-      const localWorkouts = await this.getLocalWorkouts();
-
-      // 2. Si online, essayer de récupérer et merger avec le cloud
       if (this.isOnline) {
         try {
           const cloudWorkouts = await this.getCloudWorkouts();
-          return this.mergeWorkouts(localWorkouts, cloudWorkouts);
+          return cloudWorkouts;
         } catch (error) {
           console.error("Error fetching cloud workouts:", error);
-          return localWorkouts;
+          return [];
         }
       }
 
-      return localWorkouts;
+      return [];
     } catch (error) {
       console.error("Error getting workouts:", error);
       return [];
