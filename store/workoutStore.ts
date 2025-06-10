@@ -229,21 +229,14 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const updatedExercises = currentWorkout.exercises.map((ex) => {
       if (ex.id === exerciseId) {
         const isCardioEx = isCardio(ex.exercise);
-        const isJump = isJumpRope(ex.exercise);
         const updatedSets = [...ex.sets];
         if (isCardioEx) {
-          updatedSets[setIndex] = isJump
-            ? {
-                ...updatedSets[setIndex],
-                ...setData,
-                duration_seconds: setData.duration_seconds,
-              }
-            : {
-                ...updatedSets[setIndex],
-                ...setData,
-                duration_seconds: setData.duration_seconds,
-                distance_km: setData.distance_km,
-              };
+          updatedSets[setIndex] = {
+            ...updatedSets[setIndex],
+            ...setData,
+            duration_seconds: setData.duration_seconds,
+            distance_km: setData.distance_km,
+          };
         } else {
           updatedSets[setIndex] = { ...updatedSets[setIndex], ...setData };
         }
@@ -267,21 +260,14 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const updatedExercises = currentWorkout.exercises.map((ex) => {
       if (ex.id === exerciseId) {
         const isCardioEx = isCardio(ex.exercise);
-        const isJump = isJumpRope(ex.exercise);
         const lastSet = ex.sets[ex.sets.length - 1];
         const newSet = isCardioEx
-          ? isJump
-            ? {
-                duration_seconds: lastSet?.duration_seconds,
-                completed: false,
-                rest_seconds: 90,
-              }
-            : {
-                duration_seconds: lastSet?.duration_seconds,
-                distance_km: lastSet?.distance_km,
-                completed: false,
-                rest_seconds: 90,
-              }
+          ? {
+              duration_seconds: lastSet?.duration_seconds,
+              distance_km: lastSet?.distance_km,
+              completed: false,
+              rest_seconds: 90,
+            }
           : {
               reps: lastSet?.reps,
               weight: lastSet?.weight,
@@ -582,6 +568,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
                     ex as unknown as Exercise
                   ),
                   sets: ex.sets.length,
+                  reps: "0",
+                  rest_seconds: 90,
+                  order_index: 0,
                 };
                 return {
                   id: ex.exerciseId,
@@ -690,6 +679,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
           category: "strength" as const,
           is_bodyweight: templateExercise.is_bodyweight || false,
           sets: templateExercise.sets,
+          reps: "0",
+          rest_seconds: 90,
+          order_index: 0,
         },
         sets: Array(templateExercise.sets)
           .fill(null)
@@ -808,7 +800,4 @@ const getMuscleGroupsFromExerciseId = (exerciseId: string): string[] => {
   return ["full_body"]; // Valeur par défaut
 };
 
-// Ajout d'une fonction utilitaire pour détecter la corde à sauter
-const isJumpRope = (ex: Exercise) =>
-  ex.category === "cardio" && ex.name.toLowerCase().includes("corde");
 const isCardio = (ex: Exercise) => ex.category === "cardio";

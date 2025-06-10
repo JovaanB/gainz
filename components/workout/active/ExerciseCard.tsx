@@ -24,7 +24,6 @@ interface ExerciseCardProps {
   sets: Set[];
   isCardio: boolean;
   isBodyweightExercise: boolean;
-  isJumpRope?: boolean;
   suggestedWeight?: number;
   onSetCompleted: (setIndex: number, weight: number, reps: number) => void;
   onSetDataChange: (

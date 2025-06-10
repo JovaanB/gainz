@@ -55,6 +55,8 @@ export interface ProgramSessionExercise {
   progression_notes?: string;
   is_bodyweight: boolean;
   weight_percentage?: number;
+  superset_group?: string;
+  superset_order?: number;
 }
 
 export interface CreateProgramRequest {
@@ -185,6 +187,8 @@ class ProgramService {
                 progression_notes: pse.progression_notes,
                 is_bodyweight: pse.is_bodyweight,
                 weight_percentage: pse.weight_percentage,
+                superset_group: pse.superset_group,
+                superset_order: pse.superset_order,
               })) || [],
           })) || [],
       };

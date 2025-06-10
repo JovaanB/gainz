@@ -111,9 +111,30 @@ export default function WorkoutScreen() {
     newPRs,
     markPRsSeen,
     getProgressionSuggestion,
+    getCurrentSupersetExercises,
+    getExerciseData,
+    isSuperset,
   } = useWorkoutSession(mode, programSession || undefined);
 
-  // Affichage des PRs
+  const nextExerciseIndex =
+    (isSuperset
+      ? getCurrentSupersetExercises().length - 1
+      : effectiveExerciseIndex) + 1;
+
+  const renderProgressionNotes = (progressionNotes: string) => {
+    return (
+      isProgramMode &&
+      progressionNotes && (
+        <View style={styles.progressionNotesContainer}>
+          <Text style={styles.progressionNotesTitle}>
+            💡 Conseil de progression
+          </Text>
+          <Text style={styles.progressionNotesText}>{progressionNotes}</Text>
+        </View>
+      )
+    );
+  };
+
   if (newPRs.length > 0) {
     return (
       <SafeAreaView style={styles.container}>
@@ -129,7 +150,6 @@ export default function WorkoutScreen() {
     );
   }
 
-  // Chargement du programme
   if (mode === "program" && (isLoadingProgram || isSessionLoading)) {
     return (
       <SafeAreaView style={styles.container}>
@@ -143,7 +163,6 @@ export default function WorkoutScreen() {
     );
   }
 
-  // Erreur de chargement du programme
   if (mode === "program" && programLoadError) {
     return (
       <SafeAreaView style={styles.container}>
@@ -208,7 +227,6 @@ export default function WorkoutScreen() {
           onAddTime={addTimeToTimer}
         />
 
-        {/* Suggestions de progression - seulement pour les séances libres */}
         {!isProgramMode &&
           currentExerciseData &&
           (() => {
@@ -230,12 +248,14 @@ export default function WorkoutScreen() {
                             updateSetData(
                               exerciseData.sets.length - 1,
                               "weight",
-                              suggestion.suggested.weight || 0
+                              suggestion.suggested.weight || 0,
+                              currentExerciseData.id
                             );
                             updateSetData(
                               exerciseData.sets.length - 1,
                               "reps",
-                              suggestion.suggested.reps
+                              suggestion.suggested.reps,
+                              currentExerciseData.id
                             );
                           }, 100);
                         }
@@ -243,12 +263,14 @@ export default function WorkoutScreen() {
                         updateSetData(
                           nextSetIndex,
                           "weight",
-                          suggestion.suggested.weight || 0
+                          suggestion.suggested.weight || 0,
+                          currentExerciseData.id
                         );
                         updateSetData(
                           nextSetIndex,
                           "reps",
-                          suggestion.suggested.reps
+                          suggestion.suggested.reps,
+                          currentExerciseData.id
                         );
                       }
                     }
@@ -258,60 +280,101 @@ export default function WorkoutScreen() {
             );
           })()}
 
-        {/* Badge pour indiquer le mode programme */}
-        {isProgramMode && (
-          <View style={styles.programBadgeContainer}>
-            <View style={styles.programBadge}>
-              <Text style={styles.programBadgeText}>
-                📋 Session de programme
-              </Text>
+        {isSuperset && (
+          <View style={styles.supersetBadgeContainer}>
+            <View style={styles.supersetBadge}>
+              <Text style={styles.supersetBadgeText}>🔄 Superset</Text>
             </View>
           </View>
         )}
 
-        {/* Notes de progression pour les programmes */}
-        {isProgramMode && currentExerciseData?.progression_notes && (
-          <View style={styles.progressionNotesContainer}>
-            <Text style={styles.progressionNotesTitle}>
-              💡 Conseil de progression
-            </Text>
-            <Text style={styles.progressionNotesText}>
-              {currentExerciseData.progression_notes}
-            </Text>
-          </View>
-        )}
-
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <ExerciseCard
-            exerciseName={currentExerciseData?.name || ""}
-            exerciseNumber={effectiveExerciseIndex + 1}
-            totalExercises={exercises.length}
-            targets={targets}
-            completedSets={
-              exerciseData?.sets?.filter((set: any) => set.completed).length ||
-              0
-            }
-            sets={exerciseData?.sets || []}
-            isBodyweightExercise={bodyWeightExercise}
-            isCardio={currentExerciseData?.category === "cardio"}
-            isJumpRope={
-              currentExerciseData?.category === "cardio" &&
-              currentExerciseData?.name.toLowerCase().includes("corde")
-            }
-            suggestedWeight={getSuggestedWeight(currentExerciseData)}
-            onSetCompleted={handleSetCompleted}
-            onSetDataChange={updateSetData}
-            onRemoveSet={handleRemoveSet}
-            onAddSet={handleAddSet}
-            isProgramMode={isProgramMode}
-          />
+          {isSuperset ? (
+            // Afficher tous les exercices du superset
+            getCurrentSupersetExercises().map((exercise, index) => {
+              const exerciseData = getExerciseData(exercise.id);
+
+              return (
+                <>
+                  {renderProgressionNotes(exerciseData.progression_notes)}
+
+                  <ExerciseCard
+                    key={exercise.id}
+                    exerciseName={exercise.name}
+                    exerciseNumber={index + 1}
+                    totalExercises={getCurrentSupersetExercises().length}
+                    targets={{
+                      sets: exercise.sets,
+                      reps: exercise.reps,
+                      restSeconds: exercise.rest_seconds,
+                      notes: exercise.notes,
+                      progressionNotes: exercise.progression_notes,
+                    }}
+                    completedSets={
+                      exerciseData?.sets?.filter((set: any) => set.completed)
+                        .length || 0
+                    }
+                    sets={exerciseData?.sets || []}
+                    isBodyweightExercise={exercise.is_bodyweight}
+                    isCardio={exercise.category === "cardio"}
+                    suggestedWeight={getSuggestedWeight(exercise)}
+                    onSetCompleted={(setIndex, weight, reps) =>
+                      handleSetCompleted(setIndex, weight, reps, exercise.id)
+                    }
+                    onSetDataChange={(setIndex, field, value) =>
+                      updateSetData(setIndex, field, value, exercise.id)
+                    }
+                    onRemoveSet={handleRemoveSet}
+                    onAddSet={handleAddSet}
+                    isProgramMode={isProgramMode}
+                  />
+                </>
+              );
+            })
+          ) : (
+            <>
+              {renderProgressionNotes(exerciseData.progression_notes)}
+              <ExerciseCard
+                exerciseName={currentExerciseData?.name || ""}
+                exerciseNumber={effectiveExerciseIndex + 1}
+                totalExercises={exercises.length}
+                targets={targets}
+                completedSets={
+                  exerciseData?.sets?.filter((set: any) => set.completed)
+                    .length || 0
+                }
+                sets={exerciseData?.sets || []}
+                isBodyweightExercise={bodyWeightExercise}
+                isCardio={currentExerciseData?.category === "cardio"}
+                suggestedWeight={getSuggestedWeight(currentExerciseData)}
+                onSetCompleted={(setIndex, weight, reps) =>
+                  handleSetCompleted(
+                    setIndex,
+                    weight,
+                    reps,
+                    currentExerciseData.id
+                  )
+                }
+                onSetDataChange={(setIndex, field, value) =>
+                  updateSetData(setIndex, field, value, currentExerciseData.id)
+                }
+                onRemoveSet={handleRemoveSet}
+                onAddSet={handleAddSet}
+                isProgramMode={isProgramMode}
+              />
+            </>
+          )}
 
           <ExerciseNavigation
-            currentExerciseIndex={effectiveExerciseIndex}
+            currentExerciseIndex={
+              isSuperset
+                ? effectiveExerciseIndex + getCurrentSupersetExercises().length
+                : effectiveExerciseIndex
+            }
             totalExercises={exercises.length}
             onPrevious={handlePreviousExercise}
             onNext={handleNextExercise}
-            nextExercise={exercises[effectiveExerciseIndex + 1]}
+            nextExercise={exercises[nextExerciseIndex]}
           />
         </ScrollView>
       </>
@@ -378,7 +441,7 @@ const styles = StyleSheet.create({
     color: "#1976D2",
   },
   progressionNotesContainer: {
-    margin: 16,
+    margin: 6,
     backgroundColor: "#F0F8FF",
     borderRadius: 12,
     padding: 16,
@@ -395,5 +458,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#333",
     lineHeight: 20,
+  },
+  supersetBadgeContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  supersetBadge: {
+    backgroundColor: "#FFF3E0",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FF9800",
+  },
+  supersetBadgeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#F57C00",
   },
 });

@@ -2,14 +2,17 @@ export interface Exercise {
   id: string;
   name: string;
   sets: number;
-  reps?: string | number;
-  rest_seconds?: number;
+  reps: string;
+  rest_seconds: number;
   notes?: string;
-  category?: string;
   progression_notes?: string;
-  is_bodyweight?: boolean;
-  suggested_weight?: number;
   muscle_groups: string[];
+  category: string;
+  is_bodyweight: boolean;
+  order_index: number;
+  superset_group?: string;
+  superset_order?: number;
+  suggested_weight?: number;
 }
 
 export interface Set {

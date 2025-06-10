@@ -109,8 +109,6 @@ export const useAICoachStore = create<AICoachState>()(
               })),
             }));
 
-          console.log({ recentWorkouts });
-
           const aiService = AICoachService.getInstance();
           const newRecommendations = await aiService.analyzePerformance(
             recentWorkouts,

@@ -136,18 +136,14 @@ class HybridStorageService {
     let finalExerciseId: string;
 
     try {
-      console.log(
-        "Looking for exercise by name:",
-        workoutExercise.exercise.name
-      );
-
       // Utiliser la fonction SQL pour trouver ou créer l'exercice
       const { data, error } = await supabase.rpc("get_or_create_exercise", {
         exercise_name: workoutExercise.exercise.name.trim(),
         exercise_category: workoutExercise.exercise.category || "strength",
         exercise_is_bodyweight: workoutExercise.exercise.is_bodyweight || false,
         exercise_muscle_groups: workoutExercise.exercise.muscle_groups || [],
-        exercise_suggested_weight: workoutExercise.exercise.suggested_weight,
+        exercise_suggested_weight:
+          workoutExercise.exercise.suggested_weight || "",
         exercise_rest_seconds: workoutExercise.exercise.rest_seconds,
         exercise_notes: workoutExercise.exercise.notes,
         exercise_progression_notes: workoutExercise.exercise.progression_notes,
@@ -159,16 +155,12 @@ class HybridStorageService {
       }
 
       finalExerciseId = data;
-      console.log("Exercise resolved with ID:", finalExerciseId);
     } catch (error) {
-      console.error("Error in exercise lookup/creation:", error);
       throw error;
     }
 
     // Créer la liaison workout-exercise
     try {
-      console.log("Creating workout-exercise relation");
-
       const { error: workoutExerciseError } = await supabase
         .from("workout_exercises")
         .upsert({
@@ -188,15 +180,11 @@ class HybridStorageService {
         );
         throw workoutExerciseError;
       }
-
-      console.log("Workout-exercise relation created successfully");
     } catch (error) {
-      console.error("Failed to create workout-exercise relation:", error);
       throw error;
     }
 
     // Créer les sets
-    console.log("Creating sets for workout-exercise:", workoutExercise.id);
 
     for (let i = 0; i < workoutExercise.sets.length; i++) {
       const set = workoutExercise.sets[i];
@@ -225,8 +213,6 @@ class HybridStorageService {
         throw error;
       }
     }
-
-    console.log("All sets created successfully");
   }
 
   async getWorkouts(): Promise<Workout[]> {
@@ -372,7 +358,6 @@ class HybridStorageService {
 
   private async processSyncQueue(): Promise<void> {
     if (this.syncInProgress) {
-      console.log("Sync already in progress, skipping");
       return;
     }
 
@@ -424,15 +409,10 @@ class HybridStorageService {
 
           // Arrêter après 3 échecs consécutifs
           if (failureCount >= 3) {
-            console.log("Too many sync failures, stopping batch");
             break;
           }
         }
       }
-
-      console.log(
-        `Sync batch completed: ${successCount} synced, ${failureCount} failed`
-      );
     } finally {
       this.syncInProgress = false;
     }
@@ -446,9 +426,6 @@ class HybridStorageService {
       await this.syncWorkoutToCloud(workout);
     } catch (error) {
       if (retryCount < this.maxRetries) {
-        console.log(
-          `Retrying sync for workout ${workout.id}, attempt ${retryCount + 1}`
-        );
         await new Promise((resolve) => setTimeout(resolve, this.retryDelay));
         return this.syncWorkoutToCloudWithRetry(workout, retryCount + 1);
       }

@@ -47,8 +47,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const { isAuthenticated } = useAuthStore.getState();
 
       if (!isAuthenticated) {
-        // Utilisateur non connecté, utiliser une liste basique locale
-        console.log("User not authenticated, loading basic exercises");
         set({
           exercises: getBasicExercises(),
           isLoading: false,
@@ -58,8 +56,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       // Charger tous les exercices accessibles depuis Supabase
       const exercises = await exerciseService.getAccessibleExercises();
-      console.log(`Loaded ${exercises.length} exercises from Supabase`);
-
       set({ exercises });
     } catch (error) {
       console.error("Error loading exercises:", error);
@@ -121,8 +117,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       // Ajouter à la liste locale
       const { exercises } = get();
       set({ exercises: [...exercises, newExercise] });
-
-      console.log("Personal exercise created:", newExercise.name);
     } catch (error) {
       console.error("Error creating personal exercise:", error);
       set({ error: "Impossible de créer l'exercice personnel" });

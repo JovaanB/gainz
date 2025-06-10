@@ -19,6 +19,12 @@ interface ProgramSessionData {
 
 type WorkoutMode = "free" | "program";
 
+interface SupersetGroup {
+  exercises: Exercise[];
+  currentExerciseIndex: number;
+  completed: boolean;
+}
+
 export const useWorkoutSession = (
   mode: WorkoutMode,
   programSession?: ProgramSessionData
@@ -29,6 +35,9 @@ export const useWorkoutSession = (
   const [programExerciseIndex, setProgramExerciseIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [programExercises, setProgramExercises] = useState<Exercise[]>([]);
+  const [supersetGroups, setSupersetGroups] = useState<
+    Record<string, SupersetGroup>
+  >({});
   const timerRef = useRef<NodeJS.Timeout>();
 
   // Stores
@@ -43,7 +52,6 @@ export const useWorkoutSession = (
     addSet,
     updateSet,
     removeSet,
-    completeSet,
     goToExercise,
     goToNextExercise,
     goToPreviousExercise,
@@ -62,10 +70,8 @@ export const useWorkoutSession = (
   const { selectedProgram, completeSession: completeProgramSession } =
     useProgramStore();
 
-  // Données selon le mode
   const isProgramMode = mode === "program";
 
-  // Initialisation des exercices selon le mode
   useEffect(() => {
     markPRsSeen();
 
@@ -76,6 +82,31 @@ export const useWorkoutSession = (
     }
   }, [isProgramMode, programSession, markPRsSeen]);
 
+  const organizeSupersets = (exercises: Exercise[]) => {
+    const groups: Record<string, SupersetGroup> = {};
+
+    exercises.forEach((exercise) => {
+      if (exercise.superset_group) {
+        if (!groups[exercise.superset_group]) {
+          groups[exercise.superset_group] = {
+            exercises: [],
+            currentExerciseIndex: 0,
+            completed: false,
+          };
+        }
+        groups[exercise.superset_group].exercises.push(exercise);
+      }
+    });
+
+    Object.values(groups).forEach((group) => {
+      group.exercises.sort(
+        (a, b) => (a.superset_order || 0) - (b.superset_order || 0)
+      );
+    });
+
+    return groups;
+  };
+
   const initializeProgramSession = async () => {
     if (!programSession) return;
 
@@ -83,7 +114,6 @@ export const useWorkoutSession = (
       setIsLoading(true);
       const { sessionData } = programSession;
 
-      // Convertir les exercices du programme vers le format unifié
       const convertedExercises: Exercise[] = sessionData.exercises.map(
         (exercise, index) => ({
           id: exercise.exercise_id,
@@ -93,16 +123,18 @@ export const useWorkoutSession = (
           rest_seconds: exercise.rest_seconds,
           notes: exercise.notes,
           progression_notes: exercise.progression_notes,
-          muscle_groups: [], // À remplir si nécessaire
-          category: "strength", // Valeur par défaut
+          muscle_groups: [],
+          category: "strength",
           is_bodyweight: exercise.is_bodyweight || false,
           order_index: index,
+          superset_group: exercise.superset_group || undefined,
+          superset_order: exercise.superset_order || undefined,
         })
       );
 
       setProgramExercises(convertedExercises);
+      setSupersetGroups(organizeSupersets(convertedExercises));
 
-      // Initialiser les données de session pour le mode programme
       const initialData: Record<string, any> = {};
       convertedExercises.forEach((exercise) => {
         initialData[exercise.id] = {
@@ -122,7 +154,6 @@ export const useWorkoutSession = (
     }
   };
 
-  // Sélection des exercices selon le mode
   const rawExercises = isProgramMode
     ? programExercises
     : currentWorkout?.exercises || [];
@@ -209,28 +240,15 @@ export const useWorkoutSession = (
     return () => clearInterval(timer);
   }, [sessionStartTime]);
 
-  // Fonctions utilitaires
   const getSuggestedWeight = (exercise: Exercise): number => {
     if (isBodyweightExercise(exercise)) return 0;
 
-    // Pas de suggestions pour les programmes (ils ont leurs propres objectifs)
     if (isProgramMode) return 0;
 
     const suggestionWeight = getProgressionSuggestion(exercise.id)?.currentBest
       .weight;
 
-    const weightMap: { [key: string]: number } = {
-      bench_press: 60,
-      squat: 80,
-      deadlift: 100,
-      overhead_press: 40,
-      barbell_row: 50,
-      incline_dumbbell_press: 25,
-      lateral_raises: 10,
-      barbell_curls: 20,
-    };
-
-    return suggestionWeight || weightMap[exercise.id] || 20;
+    return suggestionWeight || 0;
   };
 
   const getCurrentExerciseTargets = () => {
@@ -277,20 +295,32 @@ export const useWorkoutSession = (
   const updateSetData = (
     setIndex: number,
     field: "weight" | "reps" | "duration_seconds" | "distance_km",
-    value: number
+    value: number,
+    exerciseId?: string
   ) => {
-    if (!currentExerciseId) return;
+    const targetExerciseId = exerciseId || currentExerciseId;
+    if (!targetExerciseId) return;
 
     if (isProgramMode) {
-      setSessionData((prev) => ({
-        ...prev,
-        [currentExerciseId]: {
-          ...prev[currentExerciseId],
-          sets: prev[currentExerciseId].sets.map((set: any, index: number) =>
-            index === setIndex ? { ...set, [field]: value } : set
-          ),
-        },
-      }));
+      setSessionData((prev) => {
+        const updatedSets = prev[targetExerciseId].sets.map(
+          (set: any, index: number) =>
+            index === setIndex
+              ? {
+                  ...set,
+                  [field]: value,
+                }
+              : set
+        );
+
+        return {
+          ...prev,
+          [targetExerciseId]: {
+            ...prev[targetExerciseId],
+            sets: updatedSets,
+          },
+        };
+      });
     } else if (currentWorkoutExercise) {
       updateSet(currentWorkoutExercise.id, setIndex, { [field]: value });
     }
@@ -301,15 +331,21 @@ export const useWorkoutSession = (
   const handleSetCompleted = (
     setIndex: number,
     weight: number,
-    reps: number
+    reps: number,
+    exerciseId?: string
   ) => {
-    if (!currentExerciseId) return;
+    const targetExerciseId = exerciseId || currentExerciseId;
+    if (!targetExerciseId) return;
 
     const isCardio = currentExerciseData?.category === "cardio";
+    const currentExercise = exercises[effectiveExerciseIndex];
+    const supersetGroup = currentExercise?.superset_group
+      ? supersetGroups[currentExercise.superset_group]
+      : null;
 
     if (isProgramMode) {
       setSessionData((prev) => {
-        const updatedSets = prev[currentExerciseId].sets.map(
+        const updatedSets = prev[targetExerciseId].sets.map(
           (set: any, index: number) =>
             index === setIndex
               ? {
@@ -317,9 +353,7 @@ export const useWorkoutSession = (
                   ...(isCardio
                     ? {
                         duration_seconds: reps,
-                        ...(isJumpRope(currentExerciseData)
-                          ? {}
-                          : { distance_km: weight }),
+                        distance_km: weight,
                         completed: true,
                       }
                     : { weight, reps, completed: true }),
@@ -329,35 +363,35 @@ export const useWorkoutSession = (
 
         const allSetsCompleted = updatedSets.every((set: any) => set.completed);
 
+        if (supersetGroup && allSetsCompleted) {
+          const allExercisesCompleted = supersetGroup.exercises.every(
+            (ex) => prev[ex.id]?.completed
+          );
+
+          if (allExercisesCompleted) {
+            setSupersetGroups((prev) => ({
+              ...prev,
+              [currentExercise.superset_group!]: {
+                ...prev[currentExercise.superset_group!],
+                completed: true,
+              },
+            }));
+          }
+        }
+
         return {
           ...prev,
-          [currentExerciseId]: {
-            ...prev[currentExerciseId],
+          [targetExerciseId]: {
+            ...prev[targetExerciseId],
             sets: updatedSets,
             completed: allSetsCompleted,
           },
         };
       });
-    } else if (currentWorkoutExercise) {
-      if (isCardio) {
-        updateSet(currentWorkoutExercise.id, setIndex, {
-          distance_km: weight,
-          duration_seconds: reps,
-          completed: true,
-        });
-      } else {
-        updateSet(currentWorkoutExercise.id, setIndex, {
-          weight,
-          reps,
-          completed: true,
-        });
-      }
-      completeSet(currentWorkoutExercise.id, setIndex);
     }
 
     const isLastSet = setIndex === targets.sets - 1;
-
-    if (!isLastSet) {
+    if (!isLastSet || !supersetGroup) {
       startRestTimer(targets.restSeconds);
     }
   };
@@ -400,7 +434,6 @@ export const useWorkoutSession = (
       let detectedNewPRs: any[] = [];
 
       if (isProgramMode) {
-        // Créer l'objet workout pour la détection de PRs et la sauvegarde
         const workoutToSave: Workout = {
           id: generateUUID(),
           name: sessionTitle,
@@ -428,7 +461,6 @@ export const useWorkoutSession = (
         addWorkoutToHistory(workoutToSave);
         completedWorkoutData = workoutToSave;
 
-        // Compléter la session dans le store des programmes
         if (programSession) {
           const progressData = {
             sessionId: programSession.sessionId,
@@ -444,13 +476,11 @@ export const useWorkoutSession = (
           await completeProgramSession(progressData);
         }
       } else {
-        // Séance libre - utiliser la logique existante
         completedWorkoutData = await useWorkoutStore
           .getState()
           .saveAndFinalizeWorkout();
       }
 
-      // Détection des PRs
       if (completedWorkoutData) {
         const { workoutHistory: globalWorkoutHistory } =
           useWorkoutStore.getState();
@@ -546,86 +576,98 @@ export const useWorkoutSession = (
   };
 
   const handlePreviousExercise = () => {
-    if (isProgramMode) {
-      if (programExerciseIndex > 0) {
-        setProgramExerciseIndex(programExerciseIndex - 1);
+    const currentExercise = exercises[effectiveExerciseIndex];
+    const isInSuperset = !!currentExercise?.superset_group;
+
+    if (isInSuperset) {
+      // Si on est dans un superset, on trouve l'exercice précédant le superset
+      const supersetGroup = supersetGroups[currentExercise.superset_group!];
+      const firstExerciseInSuperset = supersetGroup.exercises.reduce(
+        (first, current) =>
+          (current.superset_order || 0) < (first.superset_order || 0)
+            ? current
+            : first
+      );
+      const firstSupersetIndex = exercises.findIndex(
+        (ex) => ex.id === firstExerciseInSuperset.id
+      );
+
+      // On va à l'exercice précédant le superset
+      const prevIndex = firstSupersetIndex - 1;
+      if (prevIndex >= 0) {
+        if (isProgramMode) {
+          setProgramExerciseIndex(prevIndex);
+        } else {
+          goToExercise(prevIndex);
+        }
       }
     } else {
-      goToPreviousExercise();
+      // Navigation normale pour les exercices non-superset
+      if (isProgramMode) {
+        if (programExerciseIndex > 0) {
+          setProgramExerciseIndex(programExerciseIndex - 1);
+        }
+      } else {
+        goToPreviousExercise();
+      }
     }
   };
 
   const handleNextExercise = () => {
-    const isCurrentExerciseCompleted = isProgramMode
-      ? sessionData[currentExerciseId]?.completed
-      : currentWorkoutExercise?.completed;
+    const currentExercise = exercises[effectiveExerciseIndex];
+    const isInSuperset = !!currentExercise?.superset_group;
 
-    if (effectiveExerciseIndex < exercises.length - 1) {
-      if (isCurrentExerciseCompleted || !isProgramMode) {
+    if (isInSuperset) {
+      const supersetGroup = supersetGroups[currentExercise.superset_group!];
+      const lastExerciseInSuperset = supersetGroup.exercises.reduce(
+        (last, current) =>
+          (current.superset_order || 0) < (last.superset_order || 0)
+            ? current
+            : last
+      );
+
+      const lastSupersetIndex = exercises.findIndex(
+        (ex) => ex.id === lastExerciseInSuperset.id
+      );
+
+      // On va à l'exercice après le superset
+      const nextIndex = lastSupersetIndex + 1;
+      if (nextIndex < exercises.length) {
         if (isProgramMode) {
-          setProgramExerciseIndex(effectiveExerciseIndex + 1);
+          setProgramExerciseIndex(nextIndex);
         } else {
-          goToNextExercise();
+          goToExercise(nextIndex);
         }
         startRestTimer(60);
       } else {
-        Alert.alert(
-          "Exercice non terminé",
-          "Veuillez compléter l'exercice actuel avant de passer au suivant."
-        );
-      }
-    } else {
-      if (isCurrentExerciseCompleted || !isProgramMode) {
         handleSessionCompleted();
-      } else {
-        Alert.alert(
-          "Exercice non terminé",
-          "Veuillez compléter le dernier exercice avant de terminer la séance."
-        );
       }
-    }
-  };
-
-  const handleGoToExercise = (index: number) => {
-    if (isProgramMode) {
-      setProgramExerciseIndex(index);
     } else {
-      if (!currentWorkout) {
-        Alert.alert(
-          "Erreur",
-          "Aucune séance en cours. Veuillez commencer une nouvelle séance.",
-          [
-            {
-              text: "OK",
-              onPress: () => router.replace("/(tabs)"),
-            },
-          ]
-        );
-        return;
+      // Navigation normale pour les exercices non-superset
+      const nextIndex = effectiveExerciseIndex + 1;
+      if (nextIndex < exercises.length) {
+        if (isProgramMode) {
+          setProgramExerciseIndex(nextIndex);
+        } else {
+          goToExercise(nextIndex);
+        }
+        startRestTimer(60);
+      } else {
+        handleSessionCompleted();
       }
-      goToExercise(index);
     }
   };
 
-  // Ajout d'une fonction utilitaire pour détecter la corde à sauter
-  const isJumpRope = (ex: Exercise) =>
-    ex.category === "cardio" && ex.name.toLowerCase().includes("corde");
   const isCardio = (ex: Exercise) => ex.category === "cardio";
 
   const initialSet = (exercise: Exercise) => {
     if (isCardio(exercise)) {
-      return isJumpRope(exercise)
-        ? {
-            duration_seconds: undefined,
-            completed: false,
-            rest_seconds: exercise.rest_seconds,
-          }
-        : {
-            duration_seconds: undefined,
-            distance_km: undefined,
-            completed: false,
-            rest_seconds: exercise.rest_seconds,
-          };
+      return {
+        duration_seconds: undefined,
+        distance_km: undefined,
+        completed: false,
+        rest_seconds: exercise.rest_seconds,
+      };
     }
     return {
       weight: undefined,
@@ -633,6 +675,30 @@ export const useWorkoutSession = (
       completed: false,
       rest_seconds: exercise.rest_seconds,
     };
+  };
+
+  // Fonction pour obtenir les exercices du superset actuel
+  const getCurrentSupersetExercises = () => {
+    const currentExercise = exercises[effectiveExerciseIndex];
+    if (!currentExercise?.superset_group) return [currentExercise];
+
+    const supersetGroup = supersetGroups[currentExercise.superset_group];
+    return supersetGroup?.exercises || [currentExercise];
+  };
+
+  const getExerciseData = (exerciseId: string) => {
+    if (isProgramMode) {
+      const exerciseData = sessionData[exerciseId];
+      const exercise = exercises.find((ex) => ex.id === exerciseId);
+      return {
+        ...exerciseData,
+        progression_notes: exercise?.progression_notes,
+      };
+    } else {
+      return currentWorkout?.exercises.find(
+        (ex) => ex.exercise.id === exerciseId
+      );
+    }
   };
 
   return {
@@ -669,7 +735,6 @@ export const useWorkoutSession = (
     addTimeToTimer,
     addSet,
     removeSet,
-    goToExercise: handleGoToExercise,
     markPRsSeen,
     completedExercises: isProgramMode
       ? Object.fromEntries(
@@ -686,5 +751,8 @@ export const useWorkoutSession = (
           })
         ),
     handleSessionFinalCleanup,
+    getCurrentSupersetExercises,
+    getExerciseData,
+    isSuperset: !!currentExerciseData?.superset_group,
   };
 };
